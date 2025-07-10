@@ -1,0 +1,26 @@
+<svg width="200" height="200" viewBox="0 0 200 200">
+    <!-- 背景 - 渐变色圆角正方形 -->
+    <defs>
+        <linearGradient id="bgGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#1890ff" />
+            <stop offset="100%" stop-color="#096dd9" />
+        </linearGradient>
+        <linearGradient id="textGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff" />
+            <stop offset="100%" stop-color="#e6f7ff" />
+        </linearGradient>
+    </defs>
+    
+    <!-- 圆角背景 -->
+    <rect x="25" y="25" width="150" height="150" rx="20" fill="url(#bgGradient)" />
+    
+    <!-- 支付系统图形元素 -->
+    <rect x="60" y="60" width="80" height="50" rx="8" fill="white" opacity="0.9" />
+    <rect x="70" y="75" width="60" height="8" rx="4" fill="#096dd9" />
+    <circle cx="85" cy="95" r="5" fill="#096dd9" />
+    <circle cx="100" cy="95" r="5" fill="#096dd9" />
+    <circle cx="115" cy="95" r="5" fill="#096dd9" />
+    
+    <!-- VMQ文字 - 简约现代字体 -->
+    <text x="100" y="140" font-family="Arial, sans-serif" font-size="32" font-weight="bold" text-anchor="middle" fill="url(#textGradient)">VMQ</text>
+</svg>
