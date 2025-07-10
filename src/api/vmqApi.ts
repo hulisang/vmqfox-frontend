@@ -262,6 +262,15 @@ export class VmqService {
   }
   
   /**
+   * 关闭超时订单
+   */
+  static async closeExpiredOrders() {
+    return api.post<any>({
+      url: `/api/order/expired`
+    })
+  }
+
+  /**
    * 删除过期订单
    */
   static async deleteExpiredOrders() {

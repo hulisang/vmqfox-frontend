@@ -124,28 +124,5 @@ export const vmqRoutes: AppRouteRecord[] = [
       icon: '&#xe654;',
       roles: ['admin']
     },
-  },
-  // 支付相关路由，这些路由不会显示在菜单中
-  {
-    path: '/payment/:orderId',
-    name: 'VmqPayment',
-    component: '/vmq/payment/PaymentPage',
-    meta: {
-      title: '扫码支付',
-      noAuth: true, // 不需要登录授权
-      hideInMenu: true, // 在菜单中隐藏
-      layout: false  // 或使用专门的支付布局
-    },
-  },
-  {
-    path: '/payment/result/:orderId',
-    name: 'VmqPaymentResult',
-    component: '/vmq/payment/PaymentResult',
-    meta: {
-      title: '支付结果',
-      noAuth: true, // 不需要登录授权
-      hideInMenu: true, // 在菜单中隐藏
-      layout: false  // 或使用专门的支付布局
-    },
   }
 ] 

@@ -312,27 +312,50 @@ onBeforeUnmount(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/assets/styles/variables.scss' as *;
+
 .payment-container {
-  max-width: 480px;
-  margin: 20px auto;
-  padding: 0 15px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .payment-card {
-  border-radius: 8px;
+  background: var(--art-main-bg-color);
+  border: 1px solid var(--art-border-color);
+  border-radius: calc(var(--custom-radius, 0.75rem) + 4px);
+  box-shadow: var(--art-box-shadow-sm);
+  overflow: hidden;
+
+  :deep(.el-card__header) {
+    background: var(--art-main-bg-color);
+    border-bottom: 1px solid var(--art-border-color);
+    padding: 24px 32px;
+  }
+
+  :deep(.el-card__body) {
+    padding: 32px;
+  }
 }
 
 .payment-header {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
+
+  h2 {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 500;
+    color: var(--art-text-gray-900);
+  }
 }
 
 .payment-logo {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
 }
 
 .payment-content {
@@ -342,57 +365,176 @@ onBeforeUnmount(() => {
 }
 
 .payment-amount {
-  font-size: 32px;
-  font-weight: bold;
-  margin: 16px 0;
+  font-size: 36px;
+  font-weight: 600;
+  margin: 24px 0;
+  color: var(--art-text-gray-900);
+  background: linear-gradient(135deg, rgb(var(--art-primary)), rgb(var(--art-secondary)));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .qrcode-wrapper {
-  width: 220px;
-  height: 220px;
-  margin: 0 auto;
+  width: 240px;
+  height: 240px;
+  margin: 0 auto 24px;
+  padding: 20px;
+  background: var(--art-main-bg-color);
+  border: 2px solid var(--art-border-color);
+  border-radius: calc(var(--custom-radius, 0.75rem));
+  box-shadow: var(--art-box-shadow-xs);
 }
 
 .payment-notice {
-  margin: 16px 0;
+  margin: 20px 0;
   width: 100%;
 }
 
 .payment-tip {
-  margin: 16px 0;
+  margin: 20px 0;
   text-align: center;
+
+  p {
+    margin: 8px 0;
+    font-size: 15px;
+    color: var(--art-text-gray-600);
+    line-height: 1.5;
+
+    &:first-child {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--art-text-gray-800);
+    }
+  }
 }
 
 .payment-detail {
   width: 100%;
-  margin-top: 20px;
+  margin-top: 24px;
+
+  :deep(.el-collapse) {
+    border: 1px solid var(--art-border-color);
+    border-radius: calc(var(--custom-radius, 0.75rem));
+    overflow: hidden;
+  }
+
+  :deep(.el-collapse-item__header) {
+    background: var(--art-gray-100);
+    padding: 16px 20px;
+    font-weight: 500;
+    color: var(--art-text-gray-800);
+  }
+
+  :deep(.el-collapse-item__content) {
+    padding: 20px;
+    background: var(--art-main-bg-color);
+  }
 }
 
 .order-detail {
-  padding: 10px 0;
+  padding: 0;
 }
 
 .detail-item {
   display: flex;
-  margin-bottom: 8px;
+  margin-bottom: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--art-border-color);
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
 }
 
 .label {
-  color: #606266;
-  width: 80px;
+  color: var(--art-text-gray-600);
+  width: 100px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
-.payment-expired {
-  padding: 30px 0;
-  text-align: center;
+.value {
+  color: var(--art-text-gray-800);
+  font-weight: 400;
+  word-break: break-all;
 }
 
+.payment-expired,
 .payment-error {
-  padding: 30px 0;
+  padding: 40px 20px;
   text-align: center;
 }
 
 .mt-4 {
-  margin-top: 16px;
+  margin-top: 20px;
 }
-</style> 
+
+// 响应式设计
+@media only screen and (max-width: $device-ipad) {
+  .payment-card {
+    :deep(.el-card__header) {
+      padding: 20px 24px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 24px;
+    }
+  }
+
+  .payment-amount {
+    font-size: 32px;
+  }
+
+  .qrcode-wrapper {
+    width: 200px;
+    height: 200px;
+    padding: 16px;
+  }
+}
+
+@media only screen and (max-width: $device-phone) {
+  .payment-card {
+    :deep(.el-card__header) {
+      padding: 16px 20px;
+    }
+
+    :deep(.el-card__body) {
+      padding: 20px;
+    }
+  }
+
+  .payment-header {
+    h2 {
+      font-size: 18px;
+    }
+  }
+
+  .payment-logo {
+    width: 32px;
+    height: 32px;
+  }
+
+  .payment-amount {
+    font-size: 28px;
+    margin: 20px 0;
+  }
+
+  .qrcode-wrapper {
+    width: 180px;
+    height: 180px;
+    padding: 12px;
+  }
+
+  .label {
+    width: 80px;
+    font-size: 14px;
+  }
+
+  .payment-expired,
+  .payment-error {
+    padding: 30px 15px;
+  }
+}
+</style>

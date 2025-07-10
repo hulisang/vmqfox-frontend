@@ -105,43 +105,168 @@ onMounted(() => {
 })
 </script>
 
-<style scoped>
+<style lang="scss" scoped>
+@use '@/assets/styles/variables.scss' as *;
+
 .result-container {
-  max-width: 600px;
-  margin: 40px auto;
-  padding: 0 15px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
 }
 
 .result-card {
-  border-radius: 8px;
+  background: var(--art-main-bg-color);
+  border: 1px solid var(--art-border-color);
+  border-radius: calc(var(--custom-radius, 0.75rem) + 4px);
+  box-shadow: var(--art-box-shadow-sm);
+  overflow: hidden;
+
+  :deep(.el-card__body) {
+    padding: 40px 32px;
+  }
 }
 
 .loading-state {
-  padding: 40px 20px;
+  padding: 60px 20px;
+  text-align: center;
 }
 
 .success-state, .failed-state {
-  padding: 20px;
+  padding: 20px 0;
+
+  :deep(.el-result) {
+    padding: 20px 0;
+  }
+
+  :deep(.el-result__title) {
+    color: var(--art-text-gray-900);
+    font-weight: 600;
+    font-size: 24px;
+    margin: 16px 0;
+  }
+
+  :deep(.el-result__subtitle) {
+    color: var(--art-text-gray-600);
+    font-size: 16px;
+    margin-bottom: 24px;
+  }
+
+  :deep(.el-result__extra) {
+    margin-top: 32px;
+
+    .el-button {
+      margin: 0 8px;
+      padding: 12px 24px;
+      font-weight: 500;
+      border-radius: calc(var(--custom-radius, 0.75rem));
+    }
+  }
 }
 
 .order-info {
-  margin-top: 20px;
-  padding: 20px;
-  background-color: #f5f7fa;
-  border-radius: 4px;
+  margin-top: 32px;
+  padding: 24px;
+  background: var(--art-gray-100);
+  border: 1px solid var(--art-border-color);
+  border-radius: calc(var(--custom-radius, 0.75rem));
 }
 
 .info-item {
   display: flex;
-  margin-bottom: 8px;
+  margin-bottom: 16px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--art-border-color);
+
+  &:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+  }
 }
 
 .label {
-  color: #606266;
-  width: 100px;
+  color: var(--art-text-gray-600);
+  width: 120px;
+  font-weight: 500;
+  flex-shrink: 0;
 }
 
 .value {
-  font-weight: 500;
+  color: var(--art-text-gray-800);
+  font-weight: 600;
+  word-break: break-all;
 }
-</style> 
+
+// 响应式设计
+@media only screen and (max-width: $device-ipad) {
+  .result-card {
+    :deep(.el-card__body) {
+      padding: 32px 24px;
+    }
+  }
+
+  .success-state, .failed-state {
+    :deep(.el-result__title) {
+      font-size: 22px;
+    }
+
+    :deep(.el-result__subtitle) {
+      font-size: 15px;
+    }
+  }
+
+  .order-info {
+    padding: 20px;
+  }
+}
+
+@media only screen and (max-width: $device-phone) {
+  .result-card {
+    :deep(.el-card__body) {
+      padding: 24px 20px;
+    }
+  }
+
+  .loading-state {
+    padding: 40px 15px;
+  }
+
+  .success-state, .failed-state {
+    :deep(.el-result__title) {
+      font-size: 20px;
+    }
+
+    :deep(.el-result__subtitle) {
+      font-size: 14px;
+    }
+
+    :deep(.el-result__extra) {
+      margin-top: 24px;
+
+      .el-button {
+        margin: 4px;
+        padding: 10px 20px;
+        font-size: 14px;
+      }
+    }
+  }
+
+  .order-info {
+    margin-top: 24px;
+    padding: 16px;
+  }
+
+  .info-item {
+    margin-bottom: 12px;
+    padding: 8px 0;
+  }
+
+  .label {
+    width: 80px;
+    font-size: 14px;
+  }
+
+  .value {
+    font-size: 14px;
+  }
+}
+</style>

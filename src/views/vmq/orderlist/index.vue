@@ -22,6 +22,7 @@
           </el-form-item>
         </el-form>
         <div class="buttons">
+          <el-button type="warning" @click="handleCloseExpired">关闭超时订单</el-button>
           <el-button type="danger" @click="handleDeleteExpired">删除过期订单</el-button>
           <el-button type="danger" @click="handleDeleteLast">删除历史订单</el-button>
         </div>
@@ -115,13 +116,29 @@ const handleDelete = async (id: number) => {
   }
 }
 
+const handleCloseExpired = async () => {
+  await ElMessageBox.confirm('确定要关闭所有超时订单吗？', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+
+  try {
+    const res = await VmqService.closeExpiredOrders()
+    ElMessage.success(`成功关闭了 ${res.count} 个超时订单`)
+    fetchOrderList()
+  } catch (error) {
+    ElMessage.error('关闭失败')
+  }
+}
+
 const handleDeleteExpired = async () => {
   await ElMessageBox.confirm('确定要删除所有过期订单吗？', '提示', {
     confirmButtonText: '确定',
     cancelButtonText: '取消',
     type: 'warning',
   })
-  
+
   try {
     const res = await VmqService.deleteExpiredOrders()
     ElMessage.success(`成功删除了 ${res.count} 个过期订单`)
