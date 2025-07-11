@@ -61,7 +61,15 @@ export interface WorkTab {
 
 // 用户Store状态
 export interface UserState {
-  userInfo: Api.User.UserInfo | null
+  userInfo: {
+    userId: number
+    userName: string
+    roles: string[]
+    buttons: string[]
+    avatar?: string
+    email?: string
+    phone?: string
+  } | null
   token: string | null
   roles: string[]
   permissions: string[]

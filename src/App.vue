@@ -16,7 +16,7 @@
   const userStore = useUserStore()
   const { language } = storeToRefs(userStore)
 
-  const locales = {
+  const locales: Record<string, any> = {
     zh: zh,
     en: en
   }

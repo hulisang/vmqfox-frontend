@@ -175,7 +175,6 @@
   const dragVerify = ref()
 
   const userStore = useUserStore()
-  const router = useRouter()
   const isPassing = ref(false)
   const isClickPass = ref(false)
 
@@ -210,41 +209,41 @@
 
   // 登录
   const handleSubmit = () => {
-    if (!formRef.value) return;
+    if (!formRef.value) return
 
     formRef.value.validate().then((valid) => {
-      if (!valid) return;
+      if (!valid) return
 
       if (!isPassing.value) {
-        isClickPass.value = true;
-        return;
+        isClickPass.value = true
+        return
       }
 
-      loading.value = true;
-      const { username, password } = formData;
+      loading.value = true
+      const { username, password } = formData
 
       userStore
         .vmqLogin(username, password)
         .then(() => {
           // 登录成功，显示成功提示。
           // 页面跳转的逻辑已经由 vmqLogin -> router-guard 接管，这里不需要做任何事
-          showLoginSuccessNotice();
+          showLoginSuccessNotice()
         })
-        .catch((error) => {
+        .catch((error: any) => {
           // 这里捕获的是真正的API错误，而不是导航错误
           if (error instanceof HttpError) {
             // 可以根据需要处理 HttpError
           } else {
-            ElMessage.error(error.message || '登录失败，请稍后重试');
-            console.error('[Login] Unexpected error:', error);
+            ElMessage.error(error.message || '登录失败，请稍后重试')
+            console.error('[Login] Unexpected error:', error)
           }
         })
         .finally(() => {
-          loading.value = false;
-          resetDragVerify();
-        });
-    });
-  };
+          loading.value = false
+          resetDragVerify()
+        })
+    })
+  }
 
   // 重置拖拽验证
   const resetDragVerify = () => {
@@ -275,7 +274,6 @@
 
   // 切换主题
   import { useTheme } from '@/composables/useTheme'
-  import { UserService } from '@/api/usersApi'
 
   const toggleTheme = () => {
     let { LIGHT, DARK } = SystemThemeEnum

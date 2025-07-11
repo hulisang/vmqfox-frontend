@@ -14,6 +14,15 @@ declare module 'vue-img-cutter'
 
 declare module 'file-saver'
 
+// Element Plus 全局组件类型声明
+declare global {
+  const ElMessage: (typeof import('element-plus'))['ElMessage']
+  const ElMessageBox: (typeof import('element-plus'))['ElMessageBox']
+  const ElNotification: (typeof import('element-plus'))['ElNotification']
+  const ElLoading: (typeof import('element-plus'))['ElLoading']
+  const ElTag: (typeof import('element-plus/es'))['ElTag']
+}
+
 declare module 'qrcode.vue' {
   export type Level = 'L' | 'M' | 'Q' | 'H'
   export type RenderAs = 'canvas' | 'svg'

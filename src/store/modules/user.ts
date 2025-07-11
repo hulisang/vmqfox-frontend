@@ -9,7 +9,7 @@ import { setPageTitle } from '@/router/utils/utils'
 import { resetRouterState } from '@/router/guards/beforeEach'
 import { RoutesAlias } from '@/router/routesAlias'
 import { VmqService } from '@/api/vmqApi'
-import { initVmqRoutes } from '@/router/vmqBootstrap'
+import type { UserInfo } from '@/api/usersApi'
 
 /**
  * 用户状态管理
@@ -27,7 +27,7 @@ export const useUserStore = defineStore(
     // 锁屏密码
     const lockPassword = ref('')
     // 用户信息
-    const info = ref<Partial<Api.User.UserInfo>>({})
+    const info = ref<Partial<UserInfo>>({})
     // 搜索历史记录
     const searchHistory = ref<AppRouteRecord[]>([])
     // 访问令牌
@@ -46,7 +46,7 @@ export const useUserStore = defineStore(
      * 设置用户信息
      * @param newInfo 新的用户信息
      */
-    const setUserInfo = (newInfo: Api.User.UserInfo) => {
+    const setUserInfo = (newInfo: UserInfo) => {
       info.value = newInfo
     }
 
@@ -113,10 +113,10 @@ export const useUserStore = defineStore(
         const result = await VmqService.login({ username, password })
         setLoginStatus(true)
         setToken(result.accessToken)
-        
+
         // 发起导航，但不要等待它完成
         router.push('/')
-        
+
         // 立即返回一个成功的Promise，以结束 handleSubmit 中的 await
         return Promise.resolve(result)
       } catch (error) {

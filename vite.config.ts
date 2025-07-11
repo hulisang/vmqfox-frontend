@@ -15,7 +15,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 export default ({ mode }) => {
   const root = process.cwd()
   const env = loadEnv(mode, root)
-  const { VITE_VERSION, VITE_PORT, VITE_BASE_URL, VITE_API_URL, VITE_VMQ_API_URL } = env
+  const { VITE_VERSION, VITE_PORT, VITE_BASE_URL, VITE_VMQ_API_URL } = env
 
   console.log(`🚀 VMQ_API_URL = ${VITE_VMQ_API_URL}`)
   console.log(`🚀 VERSION = ${VITE_VERSION}`)
@@ -30,12 +30,12 @@ export default ({ mode }) => {
       proxy: {
         '/api': {
           target: 'http://localhost:8000', // 新版API代理
-          changeOrigin: true,
+          changeOrigin: true
         },
         // 添加兼容旧版API的代理规则
         '^/(appHeart|appPush|createOrder|checkOrder|getOrder)': {
           target: 'http://localhost:8000', // 同样指向您的后端地址
-          changeOrigin: true,
+          changeOrigin: true
         }
       },
       host: true
@@ -88,7 +88,15 @@ export default ({ mode }) => {
         dts: 'src/types/components.d.ts' // 指定类型声明文件的路径
       }),
       AutoImport({
-        imports: ['vue', 'vue-router', '@vueuse/core', 'pinia'],
+        imports: [
+          'vue',
+          'vue-router',
+          '@vueuse/core',
+          'pinia',
+          {
+            'element-plus': ['ElMessage', 'ElMessageBox', 'ElNotification', 'ElLoading']
+          }
+        ],
         resolvers: [ElementPlusResolver()],
         dts: 'src/types/auto-imports.d.ts',
         eslintrc: {
