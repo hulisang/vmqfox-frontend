@@ -2,7 +2,7 @@
 
 ## 项目简介
 
-**V免签Fox二开版** 是基于原版V免签进行现代化改造的前后端分离支付系统前端部分。采用最新的 Vue 3 + TypeScript + art-design-pro 技术栈，为个人开发者提供美观、易用的免签支付管理界面。
+**V免签Fox二开版** 是基于原版V免签进行现代化改造的前后端分离支付系统前端部分。采用最新的 Vue 3 + TypeScript + art-design-pro 技术栈，为个人开发者提供美观、易用的免签支付管理界面。后端地址- [后端项目](https://github.com/hulisang/vmqfox-backend) - ThinkPHP 8 后端API服务
 
 > 本项目是V免签的二次开发版本，专注于提升用户体验和系统稳定性，同时保持原有的核心功能特性。
 
@@ -314,7 +314,7 @@ MIT License - 详见 [LICENSE](./LICENSE) 文件
 
 ## 相关链接
 
-- [后端项目](../backend/) - ThinkPHP 8 后端API服务
+- [后端项目](https://github.com/hulisang/vmqfox-backend) - ThinkPHP 8 后端API服务
 - [V免签原版](https://github.com/szvone/vmqphp) - 基于ThinkPHP 5.1的原版
 - [监控端APK](https://github.com/szvone/VmqApk) - Android监控应用
 - [art-design-pro](https://www.lingchen.kim/art-design-pro/docs/) - UI框架文档
