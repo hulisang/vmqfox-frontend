@@ -10,13 +10,16 @@
           <el-result
             icon="success"
             title="支付成功"
-            sub-title="您的订单已支付完成"
+            sub-title="正在跳转到商户网站..."
           >
             <template #extra>
-              <el-button type="primary" @click="goToMerchant">返回商户网站</el-button>
+              <div class="redirect-info">
+                <el-icon class="is-loading"><Loading /></el-icon>
+                <span>{{ redirectMessage }}</span>
+              </div>
             </template>
           </el-result>
-          
+
           <div class="order-info">
             <div class="info-item">
               <span class="label">订单金额：</span>
@@ -54,6 +57,7 @@
 import { ref, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { Loading } from '@element-plus/icons-vue'
 import { PaymentService, OrderInfo } from '@/api/paymentApi'
 
 const route = useRoute()
@@ -64,17 +68,23 @@ const returnUrl = route.query.returnUrl as string || ''
 const loading = ref(true)
 const success = ref(false)
 const orderInfo = ref<OrderInfo>({} as OrderInfo)
+const redirectMessage = ref('正在获取跳转地址...')
 
 // 获取订单信息
 const fetchOrderInfo = async () => {
   loading.value = true
   try {
     const orderData = await PaymentService.getOrder(orderId)
-    
+
     // 检查数据有效性
     if (orderData) {
       orderInfo.value = orderData
       success.value = orderData.state === 1 // 1表示支付成功
+
+      // 如果支付成功，自动跳转到商户网站
+      if (success.value) {
+        await handleAutoRedirect()
+      }
     } else {
       throw new Error('无效的订单数据')
     }
@@ -86,7 +96,43 @@ const fetchOrderInfo = async () => {
   }
 }
 
-// 返回商户网站
+// 自动跳转到商户网站
+const handleAutoRedirect = async () => {
+  try {
+    redirectMessage.value = '正在生成跳转地址...'
+
+    // 尝试通过API获取带签名的返回URL
+    const response = await PaymentService.getReturnUrl(orderId)
+    console.log('获取到带签名的返回URL:', response)
+
+    if (response && response.returnUrl) {
+      redirectMessage.value = '即将跳转到商户网站...'
+
+      // 延迟1秒后跳转，让用户看到成功信息
+      setTimeout(() => {
+        console.log('跳转到后端生成的返回URL:', response.returnUrl)
+        window.location.href = response.returnUrl
+      }, 1000)
+    } else {
+      // 如果API返回失败，尝试使用URL参数中的returnUrl
+      if (returnUrl) {
+        redirectMessage.value = '即将跳转到商户网站...'
+        setTimeout(() => {
+          console.log('使用URL参数中的返回URL:', returnUrl)
+          window.location.href = returnUrl
+        }, 1000)
+      } else {
+        throw new Error('无法获取有效的返回URL')
+      }
+    }
+  } catch (error) {
+    console.error('自动跳转失败:', error)
+    redirectMessage.value = '自动跳转失败，请手动返回商户网站'
+    ElMessage.warning('自动跳转失败，请联系商户')
+  }
+}
+
+// 返回商户网站（备用方法，现在主要用于失败情况）
 const goToMerchant = () => {
   if (returnUrl) {
     window.location.href = returnUrl
@@ -267,6 +313,21 @@ onMounted(() => {
 
   .value {
     font-size: 14px;
+  }
+}
+
+// 跳转信息样式
+.redirect-info {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--art-text-gray-600);
+  font-size: 14px;
+
+  .el-icon {
+    font-size: 16px;
+    color: var(--art-primary);
   }
 }
 </style>
