@@ -171,7 +171,7 @@
   import { formatMenuTitle } from '@/router/utils/utils'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
   import { useCheckedColumns } from '@/composables/useCheckedColumns'
-  import { ElPopover, ElButton } from 'element-plus'
+  import { ElPopover, ElButton, ElTag } from 'element-plus'
   import { AppRouteRecord } from '@/types/router'
   import { useAuth } from '@/composables/useAuth'
   import { SearchFormItem } from '@/types'
