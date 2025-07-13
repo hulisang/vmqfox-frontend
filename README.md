@@ -246,6 +246,41 @@ proxy: {
    **伪静态规则文件** (`nginx-rewrite.conf`):
 
    ```nginx
+   # 旧版心跳API代理（必须在 location / 之前）
+    location /appHeart {
+        proxy_pass http://localhost:8000/appHeart;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 处理跨域
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS, PUT, DELETE';
+        add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization';
+
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
+    }
+
+    # 旧版推送API代理（必须在 location / 之前）
+    location /appPush {
+        proxy_pass http://localhost:8000/appPush;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # 处理跨域
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods 'GET, POST, OPTIONS, PUT, DELETE';
+        add_header Access-Control-Allow-Headers 'DNT,X-Mx-ReqToken,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization';
+
+        if ($request_method = 'OPTIONS') {
+            return 204;
+        }
+    }
    # 前端路由支持 (SPA)
    location / {
        try_files $uri $uri/ /index.html;
