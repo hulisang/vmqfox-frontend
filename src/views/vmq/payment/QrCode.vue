@@ -9,7 +9,7 @@
 
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { PaymentService } from '@/api/paymentApi'
+import { VmqGoPaymentService } from '@/api/vmqGoApi'
 import use1Icon from '@/assets/img/payment/use_1.png'
 import use2Icon from '@/assets/img/payment/use_2.png'
 
@@ -25,7 +25,7 @@ const props = defineProps({
 })
 
 const showOverlay = ref(true)
-const qrcodeUrl = computed(() => PaymentService.getQrCodeUrl(props.url))
+const qrcodeUrl = computed(() => VmqGoPaymentService.getPaymentQrcodeUrl(props.url))
 
 const overlayIcon = computed(() => {
   return props.payType === 1 

@@ -37,13 +37,13 @@ export interface ReturnUrlResponse {
 
 export class PaymentService {
   /**
-   * 获取订单信息
+   * 获取订单信息（使用统一的Go API）
    */
   static async getOrder(orderId: string): Promise<OrderInfo> {
     try {
-      // api.get会自动提取响应中的data.data字段作为返回值
+      // 使用新的统一API，支付页面无需认证，通过public参数标识
       const orderInfo = await api.get<OrderInfo>({
-        url: `/api/order/get/${orderId}`,
+        url: `/api/v2/orders/${orderId}?public=true`,
         showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
       })
       return orderInfo
@@ -51,23 +51,24 @@ export class PaymentService {
       throw error
     }
   }
-  
+
   /**
-   * 检查订单状态
+   * 检查订单状态（使用统一的Go API）
    */
   static async checkOrder(orderId: string): Promise<OrderCheckResponse> {
     return api.get<OrderCheckResponse>({
-      url: `/api/order/check/${orderId}`,
+      url: `/api/v2/orders/${orderId}/status?public=true`,
       method: 'GET',
       showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
     })
   }
-  
+
   /**
    * 获取二维码图片URL
    */
   static getQrCodeUrl(url: string) {
-    return `/api/qrcode/generate?url=${encodeURIComponent(url)}`
+    // 使用Go API的v2二维码生成端点
+    return `/api/v2/qrcode/generate?url=${encodeURIComponent(url)}`
   }
   
   /**
@@ -75,7 +76,7 @@ export class PaymentService {
    */
   static async getReturnUrl(orderId: string): Promise<ReturnUrlResponse> {
     return api.get<ReturnUrlResponse>({
-      url: `/api/order/return-url/${orderId}`,
+      url: `/api/public/orders/${orderId}/return-url`,
       showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
     })
   }

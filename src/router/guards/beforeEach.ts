@@ -1,3 +1,4 @@
+import { ref } from 'vue'
 import type { Router, RouteLocationNormalized, NavigationGuardNext } from 'vue-router'
 import NProgress from 'nprogress'
 import { useSettingStore } from '@/store/modules/setting'
@@ -145,8 +146,8 @@ async function handleDynamicRoutes(
  */
 async function getMenuData(router: Router): Promise<void> {
   try {
-    // 强制使用V免签的前端菜单逻辑
-    await processVmqMenu(router)
+    // 使用后端控制模式，从Go API动态获取菜单
+    await processBackendMenu(router)
   } catch (error) {
     handleMenuError(error)
   }
@@ -165,15 +166,19 @@ async function processVmqMenu(router: Router): Promise<void> {
   const userStore = useUserStore()
   if (!userStore.info.roles || userStore.info.roles.length === 0) {
     userStore.setUserInfo({
+      id: 1,
       userId: 1,
+      username: 'admin',
       userName: 'admin',
       avatar: '',
+      role: 'admin',
       roles: ['admin'],
       buttons: [],
     })
   }
 
   const roles = userStore.info.roles
+
   if (!roles) {
     closeLoading()
     throw new Error('获取用户角色失败')

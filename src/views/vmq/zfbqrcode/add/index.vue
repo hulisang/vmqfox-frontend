@@ -73,7 +73,7 @@
 import { ref, computed } from 'vue'
 import { ElMessage, UploadFile } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
-import { VmqService } from '@/api/vmqApi'
+import { VmqGoService } from '@/api/vmqGoApi'
 import jsQR from 'jsqr'
 
 interface QrcodeItem {
@@ -172,7 +172,8 @@ const saveQrcodes = async () => {
   try {
     // 保存所有二维码
     for (const item of qrcodeList.value) {
-      await VmqService.addZfbQrcode({
+      await VmqGoService.createQrcode({
+        type: 2, // 2=支付宝
         pay_url: item.url,
         price: item.money
       })

@@ -77,6 +77,21 @@ export const staticRoutes: AppRouteRecordRaw[] = [
       }
     ]
   },
+  // 调试和测试页面 - 静态路由，无需权限
+  {
+    path: '/debug',
+    component: () => import('@views/index/index.vue'),
+    name: 'Debug',
+    meta: { title: '调试页面' },
+    children: [
+      {
+        path: '/userDebug',
+        name: 'UserDebug',
+        component: () => import('@/views/system/user/debug.vue'),
+        meta: { title: '用户管理调试' }
+      }
+    ]
+  },
   {
     path: '/outside',
     component: () => import('@views/index/index.vue'),

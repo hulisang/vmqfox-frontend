@@ -18,7 +18,7 @@
       <ElDialog v-model="visible" :width="370" :show-close="false" @open="handleDialogOpen">
         <div class="lock-content">
           <img class="cover" src="@imgs/user/avatar.webp" alt="用户头像" />
-          <div class="username">{{ userInfo.userName }}</div>
+          <div class="username">{{ userInfo.username }}</div>
           <ElForm ref="formRef" :model="formData" :rules="rules" @submit.prevent="handleLock">
             <ElFormItem prop="password">
               <ElInput
@@ -48,7 +48,6 @@
     <div v-else class="unlock-content">
       <div class="box">
         <img class="cover" src="@imgs/user/avatar.webp" alt="用户头像" />
-        <div class="username">{{ userInfo.userName }}</div>
         <ElForm
           ref="unlockFormRef"
           :model="unlockForm"
@@ -88,6 +87,8 @@
   import { ElMessage } from 'element-plus'
   import type { FormInstance, FormRules } from 'element-plus'
   import { useI18n } from 'vue-i18n'
+  import { ref, computed, reactive, onMounted, onUnmounted, watch } from 'vue'
+  import { storeToRefs } from 'pinia'
   import CryptoJS from 'crypto-js'
   import { useUserStore } from '@/store/modules/user'
   import { mittBus } from '@/utils/sys'

@@ -1,28 +1,40 @@
 <template>
   <div class="console">
-    <!-- 自动刷新控制 -->
-    <div class="auto-refresh-control">
-      <el-switch
-        v-model="autoRefreshEnabled"
-        @change="toggleAutoRefresh"
-        active-text="自动刷新"
-        inactive-text="手动刷新"
-        :loading="loading"
-        :active-value="true"
-        :inactive-value="false"
-      />
-      <span class="refresh-tip" v-if="autoRefreshEnabled">每{{ autoRefreshInterval / 1000 }}秒自动刷新一次</span>
-      <el-button 
-        type="primary" 
-        size="small" 
-        plain 
-        @click="refreshStats(true)" 
-        :loading="loading" 
-        class="refresh-btn"
-      >
-        <el-icon><Refresh /></el-icon>
-        刷新订单数据
-      </el-button>
+    <!-- 控制面板 -->
+    <div class="control-panel">
+      <!-- 数据视图切换（只有超级管理员可见） -->
+      <div class="view-switch" v-if="isSuperAdmin">
+        <el-radio-group v-model="viewMode" @change="onViewModeChange" size="small">
+          <el-radio-button value="personal">个人数据</el-radio-button>
+          <el-radio-button value="global">全局数据</el-radio-button>
+        </el-radio-group>
+        <span class="view-tip">{{ viewMode === 'personal' ? '显示您的个人订单数据' : '显示所有用户的汇总数据' }}</span>
+      </div>
+
+      <!-- 自动刷新控制 -->
+      <div class="auto-refresh-control">
+        <el-switch
+          v-model="autoRefreshEnabled"
+          @change="toggleAutoRefresh"
+          active-text="自动刷新"
+          inactive-text="手动刷新"
+          :loading="loading"
+          :active-value="true"
+          :inactive-value="false"
+        />
+        <span class="refresh-tip" v-if="autoRefreshEnabled">每{{ autoRefreshInterval / 1000 }}秒自动刷新一次</span>
+        <el-button
+          type="primary"
+          size="small"
+          plain
+          @click="refreshStats(true)"
+          :loading="loading"
+          class="refresh-btn"
+        >
+          <el-icon><Refresh /></el-icon>
+          刷新订单数据
+        </el-button>
+      </div>
     </div>
     
     <!-- 数据统计卡片 -->
@@ -74,8 +86,8 @@
           <el-descriptions-item label="服务器引擎">{{ config.server }}</el-descriptions-item>
           <el-descriptions-item label="PHP版本">{{ config.phpVersion }}</el-descriptions-item>
           <el-descriptions-item label="MySQL版本">{{ config.mysqlVersion }}</el-descriptions-item>
-          <el-descriptions-item label="ThinkPHP版本">{{ config.thinkphpVersion }}</el-descriptions-item>
-          <el-descriptions-item label="GD库版本">{{ config.gdInfo }}</el-descriptions-item>
+          <el-descriptions-item label="Go版本">{{ config.thinkphpVersion }}</el-descriptions-item>
+          <el-descriptions-item label="内存占用">{{ config.gdInfo }}</el-descriptions-item>
           <el-descriptions-item label="主程序版本">{{ config.appVersion }}</el-descriptions-item>
           <el-descriptions-item label="运行时间">{{ config.runTime }}</el-descriptions-item>
         </el-descriptions>
@@ -86,10 +98,11 @@
 
 <script setup lang="ts">
 import { ref, onMounted, computed, onUnmounted, watch } from 'vue'
-import { getSystemStatus, getSystemConfig } from '@/api/vmqApi'
+import { VmqGoService } from '@/api/vmqGoApi'
 import { CountTo } from 'vue3-count-to'
 import { useCommon } from '@/composables/useCommon'
 import { useMenuStore } from '@/store/modules/menu'
+import { useUserStore } from '@/store/modules/user'
 import { 
   Tickets, 
   Select, 
@@ -108,6 +121,21 @@ defineOptions({ name: 'VmqDashboard' })
 useCommon().scrollToTop()
 
 const menuStore = useMenuStore()
+const userStore = useUserStore()
+
+// 检查是否为超级管理员
+const isSuperAdmin = computed(() => {
+  const userInfo = userStore.info
+  console.log('用户信息:', userInfo)
+  console.log('用户角色数组:', userInfo.roles)
+  const userRole = userInfo.roles?.[0] || ''
+  console.log('用户角色:', userRole)
+  console.log('是否为超级管理员:', userRole === 'super_admin')
+  return userRole === 'super_admin'
+})
+
+// 数据视图模式：personal（个人）或 global（全局）
+const viewMode = ref<'personal' | 'global'>('personal')
 
 const stats = ref({
   todayOrder: 0,
@@ -119,12 +147,12 @@ const stats = ref({
 })
 
 const config = ref({
-  phpOs: '',
+  phpOs: '',        // 从 goOs 字段获取
   server: '',
   phpVersion: '',
   mysqlVersion: '',
-  thinkphpVersion: '',
-  gdInfo: '',
+  thinkphpVersion: '', // 从 goVersion 字段获取，显示为Go版本
+  gdInfo: '',       // 从 memoryUsage 字段获取，显示为内存占用
   appVersion: '',
   runTime: '',
 })
@@ -134,14 +162,22 @@ const autoRefreshEnabled = ref(true)
 const autoRefreshInterval = ref(30000) // 30秒刷新一次
 let autoRefreshTimer: number | null = null
 
-// 只刷新统计数据，不显示消息
+// 刷新统计数据
 const refreshStats = async (showMessage = false) => {
   try {
-    const statusRes = await getSystemStatus()
+    let statusRes
+    if (viewMode.value === 'global' && isSuperAdmin.value) {
+      // 超级管理员查看全局数据
+      statusRes = await VmqGoService.getGlobalSystemStatus()
+    } else {
+      // 个人数据或普通管理员
+      statusRes = await VmqGoService.getSystemStatus()
+    }
     stats.value = statusRes
-    
+
     if (showMessage) {
-      ElMessage.success('订单数据刷新成功')
+      const modeText = viewMode.value === 'global' ? '全局' : '个人'
+      ElMessage.success(`${modeText}订单数据刷新成功`)
     }
   } catch (error) {
     console.error("刷新订单数据失败:", error)
@@ -151,22 +187,46 @@ const refreshStats = async (showMessage = false) => {
   }
 }
 
+// 视图模式切换处理
+const onViewModeChange = (val: string | number | boolean | undefined) => {
+  const newMode = val as 'personal' | 'global'
+  console.log('切换视图模式:', newMode)
+  refreshStats(true)
+}
+
 // 刷新所有数据
 const refreshData = async () => {
   if (loading.value) return
-  
+
   loading.value = true
-  
+
   try {
-    const [statusRes, configRes] = await Promise.all([
-      getSystemStatus(),
-      getSystemConfig()
-    ])
-    
+    // 根据视图模式获取统计数据
+    let statusRes
+    if (viewMode.value === 'global' && isSuperAdmin.value) {
+      statusRes = await VmqGoService.getGlobalSystemStatus()
+    } else {
+      statusRes = await VmqGoService.getSystemStatus()
+    }
+
+    const configRes = await VmqGoService.getSystemInfo()
+
     stats.value = statusRes
-    config.value = configRes
-    
-    ElMessage.success('数据刷新成功')
+
+    // 适配Go API的字段名
+    config.value = {
+      phpOs: configRes.goOs || configRes.phpOs || '',           // 操作系统从goOs获取
+      server: configRes.server || '',
+      phpVersion: configRes.phpVersion || '',
+      mysqlVersion: configRes.mysqlVersion || '',
+      thinkphpVersion: configRes.goVersion || configRes.thinkphpVersion || '', // Go版本从goVersion获取
+      gdInfo: configRes.memoryUsage || configRes.gdInfo || '',  // 内存占用从memoryUsage获取
+      appVersion: configRes.appVersion || '',
+      runTime: configRes.runTime || '',
+    }
+
+    const modeText = viewMode.value === 'global' ? '全局' : '个人'
+    ElMessage.success(`${modeText}数据刷新成功`)
   } catch (error) {
     console.error("刷新数据失败:", error)
     ElMessage.error('刷新数据失败，请稍后重试')
@@ -299,24 +359,52 @@ onUnmounted(() => {
   --card-spacing: 20px;
   padding-bottom: 20px;
 
-  // 自动刷新控制
-  .auto-refresh-control {
-    display: flex;
-    align-items: center;
+  // 控制面板
+  .control-panel {
     margin-bottom: 20px;
-    padding: 12px 16px;
-    background: var(--art-main-bg-color);
-    border-radius: calc(var(--custom-radius) + 4px);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
-    
-    .refresh-tip {
-      margin-left: 10px;
-      font-size: 13px;
-      color: var(--art-gray-600);
+
+    .view-switch {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      margin-bottom: 12px;
+      background: var(--art-main-bg-color);
+      border-radius: calc(var(--custom-radius) + 4px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+      .view-tip {
+        font-size: 12px;
+        color: var(--art-gray-600);
+        margin-left: 8px;
+      }
+
+      :deep(.el-radio-group) {
+        .el-radio-button__inner {
+          font-size: 13px;
+          font-weight: 500;
+          padding: 6px 12px;
+        }
+      }
     }
-    
-    .refresh-btn {
-      margin-left: auto;
+
+    .auto-refresh-control {
+      display: flex;
+      align-items: center;
+      padding: 12px 16px;
+      background: var(--art-main-bg-color);
+      border-radius: calc(var(--custom-radius) + 4px);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+
+      .refresh-tip {
+        margin-left: 10px;
+        font-size: 13px;
+        color: var(--art-gray-600);
+      }
+
+      .refresh-btn {
+        margin-left: auto;
+      }
     }
   }
 
@@ -503,8 +591,14 @@ onUnmounted(() => {
 // 暗黑模式适配
 .dark {
   .console {
-    .auto-refresh-control {
-      background-color: var(--art-main-bg-color);
+    .control-panel {
+      .view-switch {
+        background-color: var(--art-main-bg-color);
+      }
+
+      .auto-refresh-control {
+        background-color: var(--art-main-bg-color);
+      }
     }
     
     .card-list {
@@ -534,4 +628,4 @@ onUnmounted(() => {
     }
   }
 }
-</style> 
+</style>

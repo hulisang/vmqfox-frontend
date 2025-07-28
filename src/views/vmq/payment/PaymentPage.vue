@@ -185,14 +185,15 @@ const checkOrderStatus = async () => {
     networkError.value = false
     
     // 根据后端状态码处理不同情况
-    if (response && response.redirectUrl) {
-      // 支付成功，有跳转地址
-      console.log('订单支付成功，准备跳转:', response.redirectUrl)
+    if (response && response.state === 1) {
+      // 支付成功
+      console.log('订单支付成功，准备跳转到商户平台')
       clearInterval(checkTimer!)
       clearAutoRefreshTimer()
-      
-      // 调用函数处理跳转，而不是直接跳转
-      await handleSuccessfulPaymentRedirect(response.redirectUrl);
+
+      // 直接跳转到商户平台，而不是自己的结果页面
+      ElMessage.success('支付成功，正在跳转到商户平台...')
+      await handleSuccessfulPaymentRedirect('')
     } else if (response && response.state === -1) {
       // 订单过期
       console.log('订单已过期')
@@ -202,12 +203,12 @@ const checkOrderStatus = async () => {
     } else {
       // 未支付状态，继续轮询
       console.log('订单未支付，继续轮询')
-      
+
       // 更新剩余时间
       if (response && response.remainingSeconds !== undefined) {
         console.log('订单剩余时间(秒):', response.remainingSeconds)
         remainingSeconds.value = response.remainingSeconds
-        
+
         // 如果剩余时间小于等于0，设置为过期
         if (remainingSeconds.value <= 0) {
           console.log('订单剩余时间为0，设置为过期状态')
@@ -245,20 +246,20 @@ const handleSuccessfulPaymentRedirect = async (redirectUrl: string) => {
     // 尝试通过API获取带签名的返回URL
     const response = await PaymentService.getReturnUrl(orderId.value);
     console.log('获取到带签名的返回URL:', response);
-    
+
     if (response && response.returnUrl) {
       // 使用后端生成的带签名的返回URL
       console.log('跳转到后端生成的返回URL:', response.returnUrl);
       window.location.href = response.returnUrl;
     } else {
-      // 如果API返回失败，使用原始的重定向URL
-      console.warn('API未返回有效的返回URL，使用原始重定向URL');
-      window.location.href = redirectUrl;
+      // 如果API返回失败，跳转到自己的结果页面作为备用方案
+      console.warn('API未返回有效的返回URL，跳转到结果页面');
+      router.replace(`/payment/result/${orderId.value}`);
     }
   } catch (error) {
-    console.error('获取带签名的返回URL失败，使用原始重定向URL:', error);
-    // 发生错误时使用原始的重定向URL
-    window.location.href = redirectUrl;
+    console.error('获取带签名的返回URL失败，跳转到结果页面:', error);
+    // 发生错误时跳转到自己的结果页面
+    router.replace(`/payment/result/${orderId.value}`);
   }
 }
 

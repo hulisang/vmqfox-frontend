@@ -6,10 +6,8 @@ import { useSettingStore } from './setting'
 import { useWorktabStore } from './worktab'
 import { AppRouteRecord } from '@/types/router'
 import { setPageTitle } from '@/router/utils/utils'
-import { resetRouterState } from '@/router/guards/beforeEach'
 import { RoutesAlias } from '@/router/routesAlias'
-import { VmqService } from '@/api/vmqApi'
-import type { UserInfo } from '@/api/usersApi'
+import { VmqGoService, type UserInfo } from '@/api/vmqGoApi'
 
 /**
  * 用户状态管理
@@ -110,9 +108,25 @@ export const useUserStore = defineStore(
      */
     const vmqLogin = async (username: string, password: string) => {
       try {
-        const result = await VmqService.login({ username, password })
+        const result = await VmqGoService.login({ username, password })
         setLoginStatus(true)
-        setToken(result.accessToken)
+        setToken(result.accessToken, result.refreshToken)
+
+        // 从登录结果中获取用户角色信息并设置用户信息
+        const userRole = result.user?.role || 'admin'
+        setUserInfo({
+          id: result.user?.id || 1,
+          userId: result.user?.id || 1,
+          username: result.user?.username || username,
+          userName: result.user?.username || username,
+          email: result.user?.email || '',
+          role: userRole,
+          roles: [userRole], // 使用Go API返回的角色
+          buttons: [],
+          avatar: '',
+          // 不使用 result.user?.created_at，因为API返回的user对象中没有这个属性
+          created_at: new Date().toISOString()
+        })
 
         // 发起导航，但不要等待它完成
         router.push('/')
@@ -146,8 +160,6 @@ export const useUserStore = defineStore(
       useWorktabStore().opened = []
       // 移除iframe路由缓存
       sessionStorage.removeItem('iframeRoutes')
-      // 重置路由状态
-      resetRouterState()
       // 跳转到登录页
       router.push(RoutesAlias.Login)
     }

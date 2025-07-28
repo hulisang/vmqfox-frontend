@@ -56,7 +56,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { CopyDocument, Download, RefreshRight } from '@element-plus/icons-vue'
-import { VmqService } from '@/api/vmqApi'
+import { VmqGoService } from '@/api/vmqGoApi'
 
 // 状态数据
 const monitorState = ref(-1) // -1: 未绑定, 0: 已掉线, 1: 运行正常
@@ -133,17 +133,44 @@ const downloadLatestMonitor = () => {
 // 获取监控端状态
 const fetchMonitorStatus = async () => {
   try {
-    const response = await VmqService.getMonitorStatus()
+    const response = await VmqGoService.getMonitorConfig()
     console.log('监控端状态API响应:', response)
-    
-    // 检查响应格式，适配后端返回的格式
-    // 如果response本身就是data，说明axios拦截器已经提取了data字段
-    const data = response.data || response
-    
+
+    // 检查响应格式，适配Go后端返回的格式
+    // Go版API直接返回数据，无需额外处理
+    const data = response
+
     // 确保有数据且格式正确
     if (data) {
-      // 设置监控状态
-      monitorState.value = parseInt(data.jkstate) || -1
+      console.log('🔍 处理API数据:', data)
+      console.log('🔍 当前monitorState值:', monitorState.value)
+
+      // 直接使用jkstate字段，因为Go后端的定时任务会自动更新这个字段
+      console.log('✅ 使用jkstate字段:', data.jkstate)
+
+      // jkstate字段含义：
+      // 0 - 掉线/异常
+      // 1 - 正常
+      // 如果没有jkstate或为空，则认为是未绑定状态
+      if (data.jkstate === undefined || data.jkstate === null || data.jkstate === '') {
+        monitorState.value = -1 // 未绑定
+        console.log('-> 设置为未绑定(-1)')
+      } else {
+        const jkstateValue = parseInt(data.jkstate)
+        if (jkstateValue === 1) {
+          monitorState.value = 1  // 正常
+          console.log('-> 设置为正常(1)')
+        } else {
+          monitorState.value = 0  // 掉线
+          console.log('-> 设置为掉线(0)')
+        }
+      }
+
+      console.log('🔍 更新后monitorState值:', monitorState.value)
+      console.log('🔍 计算的monitorStatus:', monitorStatus.value)
+      console.log('🔍 计算的statusTagType:', statusTagType.value)
+
+      // 使用原始时间戳格式化时间
       lastHeartbeat.value = formatTime(data.lastheart)
       lastPayment.value = formatTime(data.lastpay)
       
@@ -151,15 +178,19 @@ const fetchMonitorStatus = async () => {
       // 如果API返回中没有key，则需要从系统设置接口获取
       if (!data.key) {
         try {
-          // 尝试从系统设置获取key
-          const settingsResponse = await VmqService.getSettings()
+          // 尝试从Go版系统设置获取key
+          const settingsResponse = await VmqGoService.getSystemConfig()
           console.log('系统设置API响应:', settingsResponse)
-          
+
           if (settingsResponse && settingsResponse.key) {
             const host = window.location.host
-            const configUrl = host + '/' + settingsResponse.key
+            // 获取当前用户的AppID
+            let configUrl = host + '/' + settingsResponse.key
+            if (settingsResponse.appId) {
+              configUrl += '/' + settingsResponse.appId
+            }
             configData.value = configUrl
-            qrcodeUrl.value = `/api/qrcode/generate?url=${encodeURIComponent(configUrl)}`
+            qrcodeUrl.value = VmqGoService.getQrcodeImageUrl(configUrl)
           } else {
             console.error('无法获取通讯密钥(key)')
             configData.value = '无法获取配置数据，请检查系统设置'
@@ -173,9 +204,18 @@ const fetchMonitorStatus = async () => {
       } else {
         // 使用API返回的key
         const host = window.location.host
-        const configUrl = host + '/' + data.key
+        let configUrl = host + '/' + data.key
+        // 尝试获取AppID
+        try {
+          const settingsResponse = await VmqGoService.getSystemConfig()
+          if (settingsResponse && settingsResponse.appId) {
+            configUrl += '/' + settingsResponse.appId
+          }
+        } catch (error) {
+          console.log('获取AppID失败，使用不带AppID的配置:', error)
+        }
         configData.value = configUrl
-        qrcodeUrl.value = `/api/qrcode/generate?url=${encodeURIComponent(configUrl)}`
+        qrcodeUrl.value = VmqGoService.getQrcodeImageUrl(configUrl)
       }
     } else {
       console.error('API响应格式不符合预期:', response)

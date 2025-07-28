@@ -105,11 +105,11 @@
               </div>
             </template>
             <template #default>
-              <p
-                >{{ $t('topBar.guide.title')
-                }}<span :style="{ color: systemThemeColor }"> {{ $t('topBar.guide.theme') }} </span
-                >、 <span :style="{ color: systemThemeColor }"> {{ $t('topBar.guide.menu') }} </span
-                >{{ $t('topBar.guide.description') }}
+              <p>
+                {{ $t('topBar.guide.title') }}
+                <span :style="{ color: systemThemeColor }"> {{ $t('topBar.guide.theme') }} </span>
+                、 <span :style="{ color: systemThemeColor }"> {{ $t('topBar.guide.menu') }} </span>
+                {{ $t('topBar.guide.description') }}
               </p>
             </template>
           </ElPopover>
@@ -142,7 +142,7 @@
                 <div class="user-head">
                   <img class="cover" src="@imgs/user/avatar.webp" style="float: left" />
                   <div class="user-wrap">
-                    <span class="name">{{ userInfo.userName }}</span>
+                    <span class="name">{{ userInfo.username }}</span>
                     <span class="email">art.design@gmail.com</span>
                   </div>
                 </div>
@@ -185,6 +185,8 @@
   import { useRouter } from 'vue-router'
   import { ElMessageBox } from 'element-plus'
   import { useFullscreen, useWindowSize } from '@vueuse/core'
+  import { computed, ref, onMounted, onUnmounted } from 'vue'
+  import { storeToRefs } from 'pinia'
   import { LanguageEnum, MenuTypeEnum, MenuWidth } from '@/enums/appEnum'
   import { useSettingStore } from '@/store/modules/setting'
   import { useUserStore } from '@/store/modules/user'
@@ -222,7 +224,8 @@
     tabStyle
   } = storeToRefs(settingStore)
 
-  const { language, getUserInfo: userInfo } = storeToRefs(userStore)
+  const { language } = storeToRefs(userStore)
+  const userInfo = computed(() => userStore.getUserInfo)
   const { menuList } = storeToRefs(menuStore)
 
   const showNotice = ref(false)

@@ -10,8 +10,6 @@
     "fix": "eslint --fix",
     "lint:prettier": "prettier --write \"**/*.{js,cjs,ts,json,tsx,css,less,scss,vue,html,md}\"",
     "lint:stylelint": "stylelint  \"**/*.{css,scss,vue}\" --fix",
-    "lint:lint-staged": "lint-staged",
-    "prepare": "husky",
     "commit": "git-cz"
   },
   "config": {
@@ -19,33 +17,7 @@
       "path": "node_modules/cz-git"
     }
   },
-  "lint-staged": {
-    "*.{js,ts,mjs,mts,tsx}": [
-      "eslint --fix",
-      "prettier --write"
-    ],
-    "*.{cjs,json,jsonc}": [
-      "prettier --write"
-    ],
-    "*.vue": [
-      "eslint --fix",
-      "stylelint --fix --allow-empty-input",
-      "prettier --write"
-    ],
-    "*.{html,htm}": [
-      "prettier --write"
-    ],
-    "*.{scss,css,less}": [
-      "stylelint --fix --allow-empty-input",
-      "prettier --write"
-    ],
-    "*.{md,mdx}": [
-      "prettier --write"
-    ],
-    "*.{yaml,yml}": [
-      "prettier --write"
-    ]
-  },
+
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.1",
     "@vue/reactivity": "^3.4.35",
@@ -74,8 +46,6 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@commitlint/cli": "^19.4.1",
-    "@commitlint/config-conventional": "^19.4.1",
     "@eslint/js": "^9.9.1",
     "@types/node": "^22.1.0",
     "@typescript-eslint/eslint-plugin": "^8.3.0",
@@ -89,8 +59,6 @@
     "eslint-plugin-prettier": "^5.2.1",
     "eslint-plugin-vue": "^9.27.0",
     "globals": "^15.9.0",
-    "husky": "^9.1.5",
-    "lint-staged": "^15.5.2",
     "prettier": "^3.5.3",
     "rollup-plugin-visualizer": "^5.12.0",
     "sass": "^1.81.0",

@@ -16,7 +16,7 @@
         <el-table-column prop="id" label="ID" width="80" />
         <el-table-column label="二维码" width="150">
           <template #default="scope">
-            <img :src="`/api/qrcode/generate?url=${encodeURIComponent(scope.row.pay_url)}`" style="max-width: 120px; max-height: 120px;" />
+            <img :src="getQrcodeImageUrl(scope.row.pay_url)" style="max-width: 120px; max-height: 120px;" />
           </template>
         </el-table-column>
         <el-table-column prop="price" label="金额" width="120" />
@@ -25,8 +25,8 @@
           <template #default="scope">
             <el-switch
               v-model="scope.row.isEnabled"
-              :active-value="0"
-              :inactive-value="1"
+              :active-value="1"
+              :inactive-value="0"
               @change="handleStateChange(scope.row)"
             />
           </template>
@@ -62,7 +62,17 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { VmqService, QrcodeItem, QrcodeResponse } from '@/api/vmqApi'
+import { VmqGoService } from '@/api/vmqGoApi'
+
+// 定义收款码类型
+interface QrcodeItem {
+  id: number
+  price: number
+  pay_url: string
+  status: string
+  created_at: string
+  type: number
+}
 
 // 加载状态
 const loading = ref(false)
@@ -82,50 +92,36 @@ const total = ref(0)
 const fetchQrcodeList = async () => {
   loading.value = true
   try {
-    const response = await VmqService.getZfbQrcodes({
+    // 使用Go API获取支付宝收款码 (type=2)
+    const response = await VmqGoService.getQrcodes({
       page: currentPage.value,
-      limit: pageSize.value
+      limit: pageSize.value,
+      type: 2 // 2=支付宝
     })
-    
+
     // 保存原始响应用于调试
     rawResponse.value = response
-    console.log('API响应数据:', response)
-    
-    // 处理API返回的数据结构
+    console.log('Go API响应数据:', response)
+
+    // 处理Go API返回的数据结构
     let items: QrcodeItem[] = [];
     let totalCount = 0;
     
     if (response) {
-      // 检查响应数据结构
-      if (Array.isArray(response)) {
-        // 如果直接返回数组
+      // Go API返回格式: { data: Array, meta: { total, page, limit } }
+      if (response.data && Array.isArray(response.data)) {
+        items = response.data;
+        totalCount = response.meta?.total || items.length;
+      } else if (Array.isArray(response)) {
+        // 兼容直接返回数组的情况
         items = response;
         totalCount = items.length;
-      } else if (typeof response === 'object') {
-        const resp = response as any; // 使用类型断言
-        // 如果是对象，尝试不同的数据结构
-        if (resp.data) {
-          // 如果有data字段
-          if (Array.isArray(resp.data)) {
-            // 如果data是数组
-            items = resp.data;
-            totalCount = items.length;
-          } else if (resp.data.items && Array.isArray(resp.data.items)) {
-            // 如果data.items是数组
-            items = resp.data.items;
-            totalCount = resp.data.total || items.length;
-          }
-        } else if (resp.items && Array.isArray(resp.items)) {
-          // 如果直接有items字段
-          items = resp.items;
-          totalCount = resp.total || items.length;
-        }
       }
-      
+
       // 处理每个二维码项，添加isEnabled属性用于开关控制
       qrcodeList.value = items.map((item) => ({
         ...item,
-        isEnabled: item.state === 0 ? 0 : 1 // 0表示启用，1表示禁用
+        isEnabled: item.status === 'enabled' ? 1 : 0 // 根据status字段判断状态
       }));
       total.value = totalCount;
     } else {
@@ -144,14 +140,20 @@ const fetchQrcodeList = async () => {
 // 处理状态变更
 const handleStateChange = async (row: QrcodeItem & { isEnabled: number }) => {
   try {
-    // 调用API更新二维码状态
-    await VmqService.setQrcodeState(row.id, row.isEnabled)
-    ElMessage.success(`二维码已${row.isEnabled === 0 ? '启用' : '禁用'}`)
+    // 调用Go API更新状态
+    await VmqGoService.updateQrcodeStatus(row.id, row.isEnabled)
+    ElMessage.success(row.isEnabled === 1 ? '已启用' : '已禁用')
   } catch (error) {
-    // 如果API调用失败，恢复原状态
+    ElMessage.error('状态更新失败: ' + (error as Error).message)
+    // 恢复原状态
     row.isEnabled = row.isEnabled === 0 ? 1 : 0
-    ElMessage.error('更新状态失败: ' + (error as Error).message)
   }
+  //   await VmqGoService.updateQrcodeStatus(row.id, row.isEnabled)
+  //   ElMessage.success(`二维码已${row.isEnabled === 0 ? '启用' : '禁用'}`)
+  // } catch (error) {
+  //   row.isEnabled = row.isEnabled === 0 ? 1 : 0
+  //   ElMessage.error('更新状态失败: ' + (error as Error).message)
+  // }
 }
 
 // 页码变化
@@ -170,13 +172,18 @@ const handleSizeChange = (val: number) => {
 // 删除二维码
 const handleDelete = async (id: number) => {
   try {
-    await VmqService.delZfbQrcode(id)
+    await VmqGoService.deleteQrcode(id)
     ElMessage.success('删除成功')
     // 重新加载数据
     fetchQrcodeList()
   } catch (error) {
     ElMessage.error('删除失败: ' + (error as Error).message)
   }
+}
+
+// 获取二维码图片URL
+const getQrcodeImageUrl = (url: string) => {
+  return VmqGoService.getQrcodeImageUrl(url)
 }
 
 // 初始化

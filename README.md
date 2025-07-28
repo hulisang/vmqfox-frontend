@@ -366,22 +366,22 @@ proxy: {
 ### API接口调用
 
 ```typescript
-import { VmqService } from '@/api/vmqApi'
+import { VmqGoService } from '@/api/vmqGoApi'
 
 // 获取订单列表
 const getOrders = async () => {
   const params = {
     page: 1,
     limit: 20,
-    status: 1
+    status: '1'
   }
-  const result = await VmqService.getOrderList(params)
+  const result = await VmqGoService.getOrders(params)
   return result
 }
 
 // 创建支付订单
 const createOrder = async (orderData) => {
-  const result = await VmqService.createOrder(orderData)
+  const result = await VmqGoService.createOrder(orderData)
   return result
 }
 ```

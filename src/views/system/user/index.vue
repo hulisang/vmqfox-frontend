@@ -36,6 +36,7 @@
           </template>
         </ArtTable>
 
+        <!-- 用户表单对话框 -->
         <ElDialog
           v-model="dialogVisible"
           :title="dialogType === 'add' ? '添加用户' : '编辑用户'"
@@ -44,25 +45,18 @@
         >
           <ElForm ref="formRef" :model="formData" :rules="rules" label-width="80px">
             <ElFormItem label="用户名" prop="username">
-              <ElInput v-model="formData.username" />
+              <ElInput v-model="formData.username" :disabled="dialogType === 'edit'" />
             </ElFormItem>
-            <ElFormItem label="手机号" prop="phone">
-              <ElInput v-model="formData.phone" />
+            <ElFormItem label="邮箱" prop="email">
+              <ElInput v-model="formData.email" type="email" placeholder="请输入邮箱地址" />
             </ElFormItem>
-            <ElFormItem label="性别" prop="gender">
-              <ElSelect v-model="formData.gender">
-                <ElOption label="男" value="男" />
-                <ElOption label="女" value="女" />
-              </ElSelect>
+            <ElFormItem v-if="dialogType === 'add'" label="密码" prop="password">
+              <ElInput v-model="formData.password" type="password" placeholder="请输入密码" />
             </ElFormItem>
             <ElFormItem label="角色" prop="role">
-              <ElSelect v-model="formData.role" multiple>
-                <ElOption
-                  v-for="role in roleList"
-                  :key="role.roleCode"
-                  :value="role.roleCode"
-                  :label="role.roleName"
-                />
+              <ElSelect v-model="formData.role" placeholder="请选择角色">
+                <ElOption label="管理员" value="admin" />
+                <ElOption label="超级管理员" value="super_admin" />
               </ElSelect>
             </ElFormItem>
           </ElForm>
@@ -73,6 +67,29 @@
             </div>
           </template>
         </ElDialog>
+
+        <!-- 密码重置对话框 -->
+        <ElDialog
+          v-model="passwordDialogVisible"
+          title="重置密码"
+          width="25%"
+          align-center
+        >
+          <ElForm ref="passwordFormRef" :model="passwordForm" :rules="passwordRules" label-width="80px">
+            <ElFormItem label="新密码" prop="password">
+              <ElInput v-model="passwordForm.password" type="password" placeholder="请输入新密码" />
+            </ElFormItem>
+            <ElFormItem label="确认密码" prop="confirmPassword">
+              <ElInput v-model="passwordForm.confirmPassword" type="password" placeholder="请确认新密码" />
+            </ElFormItem>
+          </ElForm>
+          <template #footer>
+            <div class="dialog-footer">
+              <ElButton @click="passwordDialogVisible = false">取消</ElButton>
+              <ElButton type="primary" @click="handlePasswordReset">确定</ElButton>
+            </div>
+          </template>
+        </ElDialog>
       </ElCard>
     </div>
   </ArtTableFullScreen>
@@ -80,18 +97,30 @@
 
 <script setup lang="ts">
   import { h } from 'vue'
-  import { ROLE_LIST_DATA, ACCOUNT_TABLE_DATA } from '@/mock/temp/formData'
 
-  import { ElDialog, FormInstance, ElTag } from 'element-plus'
+  import { ElDialog, FormInstance, ElButton } from 'element-plus'
   import { ElMessageBox, ElMessage } from 'element-plus'
   import type { FormRules } from 'element-plus'
   import { useCheckedColumns } from '@/composables/useCheckedColumns'
   import ArtButtonTable from '@/components/core/forms/art-button-table/index.vue'
-  import { UserService } from '@/api/usersApi'
+  import { VmqGoService } from '@/api/vmqGoApi'
   import { SearchChangeParams, SearchFormItem } from '@/types'
-  const { width } = useWindowSize()
+  import { useUserStore } from '@/store/modules/user'
 
   defineOptions({ name: 'User' }) // 定义组件名称，用于 KeepAlive 缓存控制
+
+  // 工具函数
+  const formatTimestamp = (timestamp: number) => {
+    if (!timestamp) return '无'
+    return new Date(timestamp * 1000).toLocaleString('zh-CN', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit'
+    })
+  }
 
   const dialogType = ref('add')
   const dialogVisible = ref(false)
@@ -99,17 +128,11 @@
 
   // 定义表单搜索初始值
   const initialSearchState = {
-    name: '',
-    phone: '',
-    address: '',
-    level: '',
+    username: '',
     email: '',
-    date: '',
-    daterange: '',
-    status: '1'
+    role: '',
+    status: ''
   }
-
-  const roleList = ref<any[]>([])
 
   // 响应式表单数据
   const formFilters = reactive({ ...initialSearchState })
@@ -128,6 +151,17 @@
 
   // 选中的行数据
   const selectedRows = ref<any[]>([])
+
+  // 当前编辑的用户ID
+  const currentUserId = ref<number | null>(null)
+
+  // 密码重置对话框
+  const passwordDialogVisible = ref(false)
+  const passwordFormRef = ref<FormInstance>()
+  const passwordForm = reactive({
+    password: '',
+    confirmPassword: ''
+  })
 
   // 重置表单
   const handleReset = () => {
@@ -152,44 +186,11 @@
   const formItems: SearchFormItem[] = [
     {
       label: '用户名',
-      prop: 'name',
+      prop: 'username',
       type: 'input',
       config: {
-        clearable: true
-      },
-      onChange: handleFormChange
-    },
-
-    {
-      label: '电话',
-      prop: 'phone',
-      type: 'input',
-      config: {
-        clearable: true
-      },
-      onChange: handleFormChange
-    },
-    {
-      label: '用户等级',
-      prop: 'level',
-      type: 'select',
-      config: {
-        clearable: true
-      },
-      options: () => [
-        { label: '普通用户', value: 'normal' },
-        { label: 'VIP用户', value: 'vip' },
-        { label: '高级VIP', value: 'svip' },
-        { label: '企业用户', value: 'enterprise', disabled: true }
-      ],
-      onChange: handleFormChange
-    },
-    {
-      label: '地址',
-      prop: 'address',
-      type: 'input',
-      config: {
-        clearable: true
+        clearable: true,
+        placeholder: '请输入用户名'
       },
       onChange: handleFormChange
     },
@@ -198,74 +199,28 @@
       prop: 'email',
       type: 'input',
       config: {
-        clearable: true
+        clearable: true,
+        placeholder: '请输入邮箱'
       },
       onChange: handleFormChange
     },
-    // 支持 9 种日期类型定义
-    // 具体可参考 src/components/core/forms/art-search-bar/widget/art-search-date/README.md
     {
-      prop: 'date',
-      label: '日期',
-      type: 'date',
+      label: '角色',
+      prop: 'role',
+      type: 'select',
       config: {
-        type: 'date',
-        placeholder: '请选择日期'
-      }
-    },
-    {
-      prop: 'daterange',
-      label: '日期范围',
-      type: 'daterange',
-      config: {
-        type: 'daterange',
-        startPlaceholder: '开始时间',
-        endPlaceholder: '结束时间'
-      }
-    },
-    {
-      label: '状态',
-      prop: 'status',
-      type: 'radio',
-      options: [
-        { label: '在线', value: '1' },
-        { label: '离线', value: '2' }
+        clearable: true,
+        placeholder: '请选择角色'
+      },
+      options: () => [
+        { label: '管理员', value: 'admin' },
+        { label: '超级管理员', value: 'super_admin' }
       ],
       onChange: handleFormChange
     }
   ]
 
-  // 获取标签类型
-  // 1: 在线 2: 离线 3: 异常 4: 注销
-  const getTagType = (status: string) => {
-    switch (status) {
-      case '1':
-        return 'success'
-      case '2':
-        return 'info'
-      case '3':
-        return 'warning'
-      case '4':
-        return 'danger'
-      default:
-        return 'info'
-    }
-  }
 
-  // 构建标签文本
-  const buildTagText = (status: string) => {
-    let text = ''
-    if (status === '1') {
-      text = '在线'
-    } else if (status === '2') {
-      text = '离线'
-    } else if (status === '3') {
-      text = '异常'
-    } else if (status === '4') {
-      text = '注销'
-    }
-    return text
-  }
 
   // 显示对话框
   const showDialog = (type: string, row?: any) => {
@@ -278,84 +233,135 @@
     }
 
     if (type === 'edit' && row) {
+      currentUserId.value = row.id
       formData.username = row.username
-      formData.phone = row.userPhone
-      formData.gender = row.gender === 1 ? '男' : '女'
-
-      // 将用户角色代码数组直接赋值给formData.role
-      formData.role = Array.isArray(row.userRoles) ? row.userRoles : []
+      formData.email = row.email
+      formData.role = row.role
+      formData.password = '' // 编辑时不显示密码
     } else {
+      currentUserId.value = null
       formData.username = ''
-      formData.phone = ''
-      formData.gender = '男'
-      formData.role = []
+      formData.email = ''
+      formData.role = 'admin'
+      formData.password = ''
+    }
+  }
+
+  // 显示密码重置对话框
+  const showPasswordDialog = (row: any) => {
+    currentUserId.value = row.id
+    passwordDialogVisible.value = true
+    passwordForm.password = ''
+    passwordForm.confirmPassword = ''
+
+    // 重置表单验证状态
+    if (passwordFormRef.value) {
+      passwordFormRef.value.resetFields()
     }
   }
 
   // 删除用户
-  const deleteUser = () => {
-    ElMessageBox.confirm('确定要注销该用户吗？', '注销用户', {
-      confirmButtonText: '确定',
-      cancelButtonText: '取消',
-      type: 'error'
-    }).then(() => {
-      ElMessage.success('注销成功')
-    })
+  const deleteUser = async (row: any) => {
+    try {
+      await ElMessageBox.confirm('确定要删除该用户吗？', '删除用户', {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+
+      await VmqGoService.deleteUser(row.id)
+      ElMessage.success('删除成功')
+      getUserList() // 刷新列表
+    } catch (error: any) {
+      if (error !== 'cancel') {
+        console.error('删除用户失败:', error)
+        ElMessage.error('删除失败')
+      }
+    }
   }
 
   // 动态列配置
   const { columnChecks, columns } = useCheckedColumns(() => [
     { type: 'selection' }, // 勾选列
-    // { type: 'expand', label: '展开', width: 80 }, // 展开列
-    // { type: 'index', label: '序号', width: 80 }, // 序号列
     {
-      prop: 'avatar',
-      label: '用户名',
-      minWidth: width.value < 500 ? 220 : '',
-      formatter: (row: any) => {
-        return h('div', { class: 'user', style: 'display: flex; align-items: center' }, [
-          h('img', { class: 'avatar', src: row.avatar }),
-          h('div', {}, [
-            h('p', { class: 'user-name' }, row.userName),
-            h('p', { class: 'email' }, row.userEmail)
-          ])
-        ])
-      }
-    },
-    {
-      prop: 'userGender',
-      label: '性别',
-      sortable: true,
-      formatter: (row) => (row.userGender === 1 ? '男' : '女')
-    },
-    { prop: 'userPhone', label: '手机号' },
-    {
-      prop: 'status',
-      label: '状态',
-      formatter: (row) => {
-        return h(ElTag, { type: getTagType(row.status) }, () => buildTagText(row.status))
-      }
-    },
-    {
-      prop: 'createTime',
-      label: '创建日期',
+      prop: 'id',
+      label: 'ID',
+      width: 80,
       sortable: true
+    },
+    {
+      prop: 'username',
+      label: '用户名',
+      minWidth: 120,
+      sortable: true
+    },
+    {
+      prop: 'email',
+      label: '邮箱',
+      minWidth: 180,
+      sortable: true
+    },
+    {
+      prop: 'role',
+      label: '角色',
+      width: 120,
+      formatter: (row: any) => {
+        return row.role === 'super_admin' ? '超级管理员' : '管理员'
+      }
+    },
+
+    {
+      prop: 'last_login_time',
+      label: '最后登录时间',
+      width: 180,
+      sortable: true,
+      formatter: (row: any) => {
+        return row.last_login_time ? formatTimestamp(row.last_login_time) : '从未登录'
+      }
+    },
+    {
+      prop: 'last_login_ip',
+      label: '最后登录IP',
+      width: 140,
+      sortable: true
+    },
+    {
+      prop: 'created_at',
+      label: '创建时间',
+      width: 180,
+      sortable: true,
+      formatter: (row: any) => {
+        return formatTimestamp(row.created_at)
+      }
+    },
+    {
+      prop: 'updated_at',
+      label: '更新时间',
+      width: 180,
+      sortable: true,
+      formatter: (row: any) => {
+        return formatTimestamp(row.updated_at)
+      }
     },
     {
       prop: 'operation',
       label: '操作',
-      width: 150,
-      // fixed: 'right', // 固定在右侧
-      // disabled: true,
+      width: 200,
+      fixed: 'right',
       formatter: (row: any) => {
-        return h('div', [
+        return h('div', { style: 'display: flex; gap: 8px;' }, [
           h(ArtButtonTable, {
             type: 'edit',
             onClick: () => showDialog('edit', row)
           }),
+          h(ElButton, {
+            size: 'small',
+            type: 'warning',
+            onClick: () => showPasswordDialog(row)
+          }, () => '重置密码'),
           h(ArtButtonTable, {
             type: 'delete',
-            onClick: () => deleteUser()
+            onClick: () => deleteUser(row)
           })
         ])
       }
@@ -368,14 +374,13 @@
   // 表单数据
   const formData = reactive({
     username: '',
-    phone: '',
-    gender: '',
-    role: [] as string[]
+    email: '',
+    password: '',
+    role: 'admin'
   })
 
   onMounted(() => {
     getUserList()
-    getRoleList()
   })
 
   // 获取用户列表数据
@@ -384,28 +389,63 @@
     try {
       const { currentPage, pageSize } = pagination
 
-      const { records, current, size, total } = await UserService.getUserList({
-        current: currentPage,
-        size: pageSize
-      })
+      // 构建搜索参数
+      const params: any = {
+        page: currentPage,
+        limit: pageSize
+      }
 
-      // 使用本地头像替换接口返回的头像
-      tableData.value = records.map((item: any, index: number) => ({
-        ...item,
-        avatar: ACCOUNT_TABLE_DATA[index % ACCOUNT_TABLE_DATA.length].avatar
+      // 添加搜索条件
+      if (formFilters.username) {
+        params.search = formFilters.username
+      }
+
+      console.log('请求参数:', params)
+      console.log('当前token:', useUserStore().accessToken)
+
+      // 使用Go API获取用户列表
+      const response = await VmqGoService.getUsers(params)
+
+      console.log('API响应:', response)
+
+      // 处理Go API返回的数据格式
+      const userList = response.data || []
+      const meta = response.meta || {}
+
+      tableData.value = userList.map((item: any) => ({
+        id: item.id,
+        username: item.username,
+        email: item.email,
+        role: item.role,
+        status: item.status,
+        last_login_time: item.last_login_time,
+        last_login_ip: item.last_login_ip,
+        created_at: item.created_at,
+        updated_at: item.updated_at
       }))
 
       // 更新分页信息
-      Object.assign(pagination, { currentPage: current, pageSize: size, total })
-    } catch (error) {
+      Object.assign(pagination, {
+        currentPage: meta.page || 1,
+        pageSize: meta.limit || 10,
+        total: meta.total || 0
+      })
+    } catch (error: any) {
       console.error('获取用户列表失败:', error)
+
+      // 详细错误信息
+      if (error?.response?.status === 401) {
+        ElMessage.error('未授权访问，请先登录')
+      } else if (error?.response?.status === 403) {
+        ElMessage.error('权限不足，需要超级管理员权限')
+      } else if (error?.response?.data?.message) {
+        ElMessage.error(`获取用户列表失败: ${error.response.data.message}`)
+      } else {
+        ElMessage.error('获取用户列表失败，请检查网络连接和后端服务')
+      }
     } finally {
       loading.value = false
     }
-  }
-
-  const getRoleList = () => {
-    roleList.value = ROLE_LIST_DATA
   }
 
   const handleRefresh = () => {
@@ -421,24 +461,95 @@
   const rules = reactive<FormRules>({
     username: [
       { required: true, message: '请输入用户名', trigger: 'blur' },
-      { min: 2, max: 20, message: '长度在 2 到 20 个字符', trigger: 'blur' }
+      { min: 3, max: 50, message: '长度在 3 到 50 个字符', trigger: 'blur' }
     ],
-    phone: [
-      { required: true, message: '请输入手机号', trigger: 'blur' },
-      { pattern: /^1[3-9]\d{9}$/, message: '请输入正确的手机号格式', trigger: 'blur' }
+    email: [
+      { required: true, message: '请输入邮箱', trigger: 'blur' },
+      { type: 'email', message: '请输入正确的邮箱格式', trigger: 'blur' }
     ],
-    gender: [{ required: true, message: '请选择性别', trigger: 'change' }],
+    password: [
+      { required: true, message: '请输入密码', trigger: 'blur' },
+      { min: 6, max: 50, message: '长度在 6 到 50 个字符', trigger: 'blur' }
+    ],
     role: [{ required: true, message: '请选择角色', trigger: 'change' }]
+  })
+
+  // 密码重置验证规则
+  const passwordRules = reactive<FormRules>({
+    password: [
+      { required: true, message: '请输入新密码', trigger: 'blur' },
+      { min: 6, max: 50, message: '长度在 6 到 50 个字符', trigger: 'blur' }
+    ],
+    confirmPassword: [
+      { required: true, message: '请确认密码', trigger: 'blur' },
+      {
+        validator: (_rule, value, callback) => {
+          if (value !== passwordForm.password) {
+            callback(new Error('两次输入的密码不一致'))
+          } else {
+            callback()
+          }
+        },
+        trigger: 'blur'
+      }
+    ]
   })
 
   // 提交表单
   const handleSubmit = async () => {
     if (!formRef.value) return
 
-    await formRef.value.validate((valid) => {
+    await formRef.value.validate(async (valid) => {
       if (valid) {
-        ElMessage.success(dialogType.value === 'add' ? '添加成功' : '更新成功')
-        dialogVisible.value = false
+        try {
+          if (dialogType.value === 'add') {
+            // 创建新用户
+            await VmqGoService.createUser({
+              username: formData.username,
+              email: formData.email,
+              password: formData.password,
+              role: formData.role
+            })
+            ElMessage.success('添加成功')
+          } else {
+            // 更新用户
+            if (currentUserId.value) {
+              await VmqGoService.updateUser(currentUserId.value, {
+                username: formData.username,
+                email: formData.email,
+                role: formData.role
+              })
+              ElMessage.success('更新成功')
+            }
+          }
+
+          dialogVisible.value = false
+          // 刷新用户列表
+          getUserList()
+        } catch (error: any) {
+          console.error('操作失败:', error)
+          const message = error?.response?.data?.message || (dialogType.value === 'add' ? '添加失败' : '更新失败')
+          ElMessage.error(message)
+        }
+      }
+    })
+  }
+
+  // 处理密码重置
+  const handlePasswordReset = async () => {
+    if (!passwordFormRef.value || !currentUserId.value) return
+
+    await passwordFormRef.value.validate(async (valid) => {
+      if (valid) {
+        try {
+          await VmqGoService.resetUserPassword(currentUserId.value!, passwordForm.password)
+          ElMessage.success('密码重置成功')
+          passwordDialogVisible.value = false
+        } catch (error: any) {
+          console.error('密码重置失败:', error)
+          const message = error?.response?.data?.message || '密码重置失败'
+          ElMessage.error(message)
+        }
       }
     })
   }
@@ -456,22 +567,17 @@
 </script>
 
 <style lang="scss" scoped>
-  .account-page {
-    :deep(.user) {
-      .avatar {
-        width: 40px;
-        height: 40px;
-        border-radius: 6px;
-      }
+.account-page {
+  padding: 20px;
 
-      > div {
-        margin-left: 10px;
-
-        .user-name {
-          font-weight: 500;
-          color: var(--art-text-gray-800);
-        }
-      }
-    }
+  .search-form {
+    margin-bottom: 20px;
   }
+
+  .table-container {
+    background: white;
+    border-radius: 8px;
+    padding: 20px;
+  }
+}
 </style>

@@ -144,6 +144,20 @@
           font-size: 14px;
           color: var(--art-text-gray-500);
 
+          .remember-checkbox {
+            display: flex;
+            align-items: center;
+
+            :deep(.el-checkbox__input) {
+              margin-right: 8px;
+            }
+
+            :deep(.el-checkbox__label) {
+              padding-left: 0;
+              line-height: 1;
+            }
+          }
+
           a {
             color: var(--main-color);
             text-decoration: none;

@@ -10,6 +10,7 @@ interface BaseResponse<T = any> {
   code: number
   msg: string
   data: T
+  meta?: any // 添加meta字段，用于分页信息
 }
 
 // 常量定义
@@ -55,9 +56,13 @@ axiosInstance.interceptors.request.use(
   (request: InternalAxiosRequestConfig) => {
     const { accessToken } = useUserStore()
 
-    // 设置 token 和 请求头
-    if (accessToken) {
-      request.headers.set('Authorization', accessToken)
+    // 检查是否是支付页面的公开API请求
+    const isPublicPaymentRequest = request.url?.includes('public=true') ||
+                                   request.url?.includes('/api/public/')
+
+    // 设置 token 和 请求头（支付页面的公开请求不添加认证头）
+    if (accessToken && !isPublicPaymentRequest) {
+      request.headers.set('Authorization', `Bearer ${accessToken}`)
       request.headers.set('Content-Type', 'application/json')
     }
 
@@ -135,6 +140,17 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
 
   try {
     const res = await axiosInstance.request<BaseResponse<T>>(config)
+    // 对于Go API，需要返回完整的响应数据（包含data和meta）
+    // 检查是否是Go API的响应格式（包含meta字段的分页响应）
+    if ('meta' in res.data) {
+      return res.data as T
+    }
+    // 检查是否是Go API的URL（以/api/v2开头）
+    if (config.url && config.url.includes('/api/v2/')) {
+      // 对于Go API的非分页响应，返回data部分
+      return res.data.data as T
+    }
+    // 对于其他API，只返回data部分
     return res.data.data as T
   } catch (error) {
     if (error instanceof HttpError) {
@@ -156,6 +172,9 @@ const api = {
   },
   put<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
     return retryRequest<T>({ ...config, method: 'PUT' })
+  },
+  patch<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
+    return retryRequest<T>({ ...config, method: 'PATCH' })
   },
   del<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
     return retryRequest<T>({ ...config, method: 'DELETE' })

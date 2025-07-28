@@ -13,9 +13,12 @@ export async function initVmqRoutes(router: Router): Promise<void> {
   // 设置用户为管理员角色
   const userStore = useUserStore()
   userStore.setUserInfo({
+    id: 1,
     userId: 1,
+    username: 'admin',
     userName: 'admin',
     avatar: '',
+    role: 'admin',
     roles: ['admin'],
     buttons: []
   })
@@ -28,4 +31,4 @@ export async function initVmqRoutes(router: Router): Promise<void> {
   registerDynamicRoutes(router, vmqRoutes as AppRouteRecord[])
   
   return Promise.resolve()
-} 
+}

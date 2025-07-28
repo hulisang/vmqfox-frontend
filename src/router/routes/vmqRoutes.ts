@@ -17,6 +17,8 @@ export const vmqRoutes: AppRouteRecord[] = [
       fixedTab: true,
     },
   },
+
+
   {
     path: '/systemSettings',
     name: 'SystemSettings',
@@ -34,6 +36,26 @@ export const vmqRoutes: AppRouteRecord[] = [
     meta: {
       title: '监控端状态',
       icon: '&#xe81d;',
+      roles: ['admin']
+    },
+  },
+  {
+    path: '/userManagement',
+    name: 'UserManagement',
+    component: '/system/user/index',
+    meta: {
+      title: '用户管理',
+      icon: '&#xe6d1;',
+      roles: ['admin']
+    },
+  },
+  {
+    path: '/userDebug',
+    name: 'UserDebug',
+    component: '/system/user/debug',
+    meta: {
+      title: '用户管理调试',
+      icon: '&#xe6d2;',
       roles: ['admin']
     },
   },

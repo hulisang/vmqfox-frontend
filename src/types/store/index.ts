@@ -62,13 +62,17 @@ export interface WorkTab {
 // 用户Store状态
 export interface UserState {
   userInfo: {
-    userId: number
-    userName: string
-    roles: string[]
-    buttons: string[]
-    avatar?: string
+    id?: number
+    userId?: number
+    username?: string
+    userName?: string
     email?: string
+    role?: string
+    roles?: string[]
+    buttons?: string[]
+    avatar?: string
     phone?: string
+    created_at?: string
   } | null
   token: string | null
   roles: string[]
