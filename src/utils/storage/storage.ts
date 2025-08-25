@@ -105,11 +105,24 @@ class StorageCompatibilityManager {
   }
 
   /**
+   * 检查是否在不需要登录的页面
+   */
+  private isOnNoLoginPage(): boolean {
+    // 支付页面不需要登录验证
+    return (
+      location.href.includes('/payment/') ||
+      location.href.includes(RoutesAlias.Login) ||
+      location.href.includes('/auth/register') ||
+      location.href.includes('/auth/forget-password')
+    )
+  }
+
+  /**
    * 验证存储数据完整性
    */
   validateStorageData(): boolean {
-    // 如果在登录页面，跳过验证
-    if (this.isOnLoginPage()) {
+    // 如果在不需要登录的页面，跳过验证
+    if (this.isOnNoLoginPage()) {
       return true
     }
 
