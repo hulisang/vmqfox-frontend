@@ -17,7 +17,14 @@ export default ({ mode }) => {
   const env = loadEnv(mode, root)
   const { VITE_VERSION, VITE_PORT, VITE_BASE_URL, VITE_VMQ_API_URL } = env
 
+  // 从 VITE_VMQ_API_URL 提取后端服务地址，默认为 localhost:8000
+  const backendUrl =
+    VITE_VMQ_API_URL && VITE_VMQ_API_URL.startsWith('http')
+      ? VITE_VMQ_API_URL.replace('/api/', '')
+      : 'http://localhost:8000'
+
   console.log(`🚀 VMQ_API_URL = ${VITE_VMQ_API_URL}`)
+  console.log(`🚀 BACKEND_URL = ${backendUrl}`)
   console.log(`🚀 VERSION = ${VITE_VERSION}`)
 
   return defineConfig({
@@ -29,12 +36,12 @@ export default ({ mode }) => {
       port: parseInt(VITE_PORT),
       proxy: {
         '/api': {
-          target: 'http://localhost:8000', // 新版API代理
+          target: backendUrl, // 使用环境变量配置的后端地址
           changeOrigin: true
         },
         // 添加兼容旧版API的代理规则
         '^/(appHeart|appPush|createOrder|checkOrder|getOrder)': {
-          target: 'http://localhost:8000', // 同样指向您的后端地址
+          target: backendUrl, // 使用环境变量配置的后端地址
           changeOrigin: true
         }
       },
