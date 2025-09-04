@@ -1,5 +1,6 @@
 # 多阶段构建 - 构建阶段
-FROM node:18-alpine AS builder
+ARG TARGETPLATFORM=linux/amd64
+FROM --platform=${TARGETPLATFORM} node:18-alpine AS builder
 
 # 设置工作目录
 WORKDIR /app
@@ -21,7 +22,7 @@ COPY . .
 RUN pnpm build
 
 # 生产阶段 - 使用nginx提供静态文件服务
-FROM nginx:alpine
+FROM --platform=${TARGETPLATFORM} nginx:alpine
 
 # 安装必要的工具
 RUN apk add --no-cache tzdata
