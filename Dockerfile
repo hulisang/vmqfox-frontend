@@ -19,7 +19,7 @@ RUN pnpm install --frozen-lockfile
 COPY . .
 
 # 构建生产版本
-RUN pnpm build
+RUN pnpm exec vite build
 
 # 生产阶段 - 使用nginx提供静态文件服务
 FROM --platform=${TARGETPLATFORM} nginx:alpine
