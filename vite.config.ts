@@ -6,7 +6,7 @@ import Components from 'unplugin-vue-components/vite'
 import AutoImport from 'unplugin-auto-import/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath } from 'url'
-// import viteImagemin from 'vite-plugin-imagemin'
+
 // import { visualizer } from 'rollup-plugin-visualizer'
 
 // https://devtools.vuejs.org/getting-started/introduction

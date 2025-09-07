@@ -120,16 +120,12 @@
   },
   "login": {
     "leftView": {
-      "title": "专注于用户体验的后台管理系统模版",
-      "subTitle": "美观实用的界面，经过视觉优化，确保卓越的用户体验"
+      "title": "V免签 —— 个人开发者收款解决方案",
+      "subTitle": ""
     },
     "title": "欢迎回来",
     "subTitle": "输入您的账号和密码登录",
-    "roles": {
-      "super": "超级管理员",
-      "admin": "管理员",
-      "user": "普通用户"
-    },
+
     "placeholder": ["请输入账号", "请输入密码", "请拖动滑块完成验证"],
     "sliderText": "按住滑块拖动",
     "sliderSuccessText": "验证成功",

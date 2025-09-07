@@ -95,7 +95,31 @@
           }
         }
 
-        .account-select :deep(.el-select__wrapper),
+        .login-tips {
+          margin-top: 15px;
+          margin-bottom: 10px;
+
+          .tips-text {
+            font-size: 12px;
+            color: var(--el-color-warning-dark-2);
+            text-align: center;
+            line-height: 1.4;
+            margin: 0;
+            padding: 10px 15px;
+            background-color: var(--el-color-warning-light-9);
+            border-radius: 6px;
+            border: 1px solid var(--el-color-warning-light-7);
+            border-left: 4px solid var(--el-color-warning);
+            position: relative;
+
+            &::before {
+              content: '⚠️';
+              margin-right: 6px;
+              font-size: 14px;
+            }
+          }
+        }
+
         .el-input,
         .login-btn {
           height: 40px !important;

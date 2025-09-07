@@ -120,16 +120,12 @@
   },
   "login": {
     "leftView": {
-      "title": "An Admin template focused on user experience",
-      "subTitle": "A sleek and practical interface for a great user experience"
+      "title": "V免签 —— 个人开发者收款解决方案",
+      "subTitle": ""
     },
     "title": "Welcome back",
     "subTitle": "Please enter your account and password to login",
-    "roles": {
-      "super": "Super Admin",
-      "admin": "Admin",
-      "user": "User"
-    },
+
     "placeholder": [
       "Please enter your account",
       "Please enter your password",

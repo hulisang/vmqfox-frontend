@@ -179,9 +179,7 @@
       submitData.zfbpay = submitData.zfbQrcode
 
       // 确保提交时也使用后端期望的驼峰命名
-      // @ts-expect-error - 动态添加属性到submitData对象
       submitData.notifyUrl = formData.notifyUrl
-      // @ts-expect-error - 动态添加属性到submitData对象
       submitData.returnUrl = formData.returnUrl
 
       await VmqService.updateSettings(submitData)

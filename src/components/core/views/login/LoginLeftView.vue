@@ -4,8 +4,7 @@
       <ArtLogo class="icon" />
       <h1 class="title">{{ AppConfig.systemInfo.name }}</h1>
     </div>
-    <img class="left-bg" src="@imgs/login/lf_bg.webp" />
-    <img class="left-img" src="@imgs/login/lf_icon2.webp" />
+    <img class="left-bg" src="@imgs/login/new_bg.jpeg" />
 
     <div class="text-wrap">
       <h1> {{ $t('login.leftView.title') }} </h1>
@@ -37,9 +36,10 @@
 
       .title {
         margin: 3px 0 0 10px;
-        font-size: 20px;
-        font-weight: 400;
-        color: var(--art-text-gray-100);
+        font-size: 22px;
+        font-weight: 600;
+        color: #1a1a1a;
+        text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
       }
     }
 
@@ -52,15 +52,6 @@
       object-fit: cover;
     }
 
-    .left-img {
-      position: relative;
-      z-index: 10;
-      display: block;
-      width: 500px;
-      margin: auto;
-      margin-top: 15vh;
-    }
-
     .text-wrap {
       position: absolute;
       bottom: 80px;
@@ -68,24 +59,24 @@
       text-align: center;
 
       h1 {
-        font-size: 26px;
-        font-weight: 400;
-        color: #f9f9f9;
+        font-size: 28px;
+        font-weight: 700;
+        color: #1a1a1a;
+        text-shadow: 0 2px 4px rgba(255, 255, 255, 0.9);
+        margin-bottom: 8px;
       }
 
       p {
-        margin-top: 10px;
-        font-size: 14px;
-        color: #c4cada;
+        margin-top: 12px;
+        font-size: 16px;
+        font-weight: 500;
+        color: #2d2d2d;
+        text-shadow: 0 1px 3px rgba(255, 255, 255, 0.8);
+        line-height: 1.4;
       }
     }
 
     @media only screen and (max-width: $device-notebook) {
-      .left-img {
-        width: 480px;
-        margin-top: 10vh;
-      }
-
       .text-wrap {
         bottom: 40px;
       }
