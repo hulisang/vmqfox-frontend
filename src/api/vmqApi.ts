@@ -57,7 +57,7 @@ export class VmqService {
       message: '登录成功',
     };
   }
-  
+
   /**
    * 获取菜单数据
    */
@@ -66,7 +66,7 @@ export class VmqService {
       url: `/api/menu`
     })
   }
-  
+
   /**
    * 获取订单列表
    * @param params 查询参数
@@ -77,7 +77,7 @@ export class VmqService {
       params
     })
   }
-  
+
   /**
    * 获取微信二维码列表
    */
@@ -87,7 +87,7 @@ export class VmqService {
       params
     })
   }
-  
+
   /**
    * 获取支付宝二维码列表
    */
@@ -97,7 +97,7 @@ export class VmqService {
       params
     })
   }
-  
+
   /**
    * 添加微信二维码
    */
@@ -107,7 +107,7 @@ export class VmqService {
       data
     })
   }
-  
+
   /**
    * 添加支付宝二维码
    */
@@ -117,7 +117,7 @@ export class VmqService {
       data
     })
   }
-  
+
   /**
    * 删除微信二维码
    */
@@ -126,7 +126,7 @@ export class VmqService {
       url: `/api/qrcode/wechat/${id}`
     })
   }
-  
+
   /**
    * 删除支付宝二维码
    */
@@ -135,7 +135,7 @@ export class VmqService {
       url: `/api/qrcode/alipay/${id}`
     })
   }
-  
+
   /**
    * 上传微信二维码图片
    */
@@ -157,10 +157,10 @@ export class VmqService {
       const errorData = await response.json().catch(() => ({ msg: `HTTP 错误，状态码: ${response.status}` }))
       throw new Error(errorData.msg || '上传失败')
     }
-    
+
     return response.json()
   }
-  
+
   /**
    * 上传支付宝二维码图片
    */
@@ -173,7 +173,7 @@ export class VmqService {
       }
     })
   }
-  
+
   /**
    * 解析二维码
    */
@@ -183,9 +183,9 @@ export class VmqService {
     /*
     try {
       console.log('调用parseQrcode方法，数据长度:', qrcodeData.length)
-      
+
       const formData = new FormData()
-      
+
       const byteCharacters = atob(qrcodeData)
       const byteNumbers = new Array(byteCharacters.length)
       for (let i = 0; i < byteCharacters.length; i++) {
@@ -193,9 +193,9 @@ export class VmqService {
       }
       const byteArray = new Uint8Array(byteNumbers)
       const blob = new Blob([byteArray], { type: 'image/png' })
-      
+
       formData.append('file', blob, 'qrcode.png')
-      
+
       const response = await api.post<any>({
         url: `/api/qrcode/parse`,
         data: formData,
@@ -203,7 +203,7 @@ export class VmqService {
           'Content-Type': 'multipart/form-data'
         }
       })
-      
+
       console.log('解析二维码API调用成功:', response)
       return response
     } catch (error) {
@@ -213,7 +213,7 @@ export class VmqService {
     */
     return Promise.resolve()
   }
-  
+
   /**
    * 获取系统设置
    */
@@ -222,7 +222,7 @@ export class VmqService {
       url: `/api/config/settings`
     })
   }
-  
+
   /**
    * 更新系统设置
    */
@@ -232,7 +232,7 @@ export class VmqService {
       data: params
     })
   }
-  
+
   /**
    * 获取监控端状态
    */
@@ -241,7 +241,7 @@ export class VmqService {
       url: `/api/config/monitor`
     })
   }
-  
+
   /**
    * 设置监控端参数
    */
@@ -251,7 +251,7 @@ export class VmqService {
       data: params
     })
   }
-  
+
   /**
    * 删除订单
    */
@@ -260,7 +260,17 @@ export class VmqService {
       url: `/api/order/${id}`
     })
   }
-  
+
+  /**
+   * 补单（重新发起异步通知）
+   */
+  static async reissueOrder(id: number) {
+    return api.post<any>({
+      url: `/api/order/reissue/${id}`
+    })
+  }
+
+
   /**
    * 关闭超时订单
    */
@@ -278,7 +288,7 @@ export class VmqService {
       url: `/api/order/expired`
     })
   }
-  
+
   /**
    * 删除历史订单
    */
@@ -287,7 +297,7 @@ export class VmqService {
       url: `/api/order/last`
     })
   }
-  
+
   /**
    * 设置二维码状态（启用/禁用）
    * @param id 二维码ID
@@ -317,4 +327,4 @@ export const getSystemConfig = () => {
   return api.get<any>({ url: '/api/config/get' })
 }
 
-export type { QrcodeItem, QrcodeResponse } 
+export type { QrcodeItem, QrcodeResponse }

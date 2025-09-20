@@ -43,6 +43,7 @@
         <el-table-column prop="create_time" label="创建时间"></el-table-column>
         <el-table-column label="操作">
           <template #default="{ row }">
+            <el-button size="small" type="primary" :disabled="row.state === 1" @click="handleReissue(row.id)">补单</el-button>
             <el-button size="small" type="danger" @click="handleDelete(row.id)">删除</el-button>
           </template>
         </el-table-column>
@@ -106,7 +107,7 @@ const handleDelete = async (id: number) => {
     cancelButtonText: '取消',
     type: 'warning',
   })
-  
+
   try {
     await VmqService.deleteOrder(id)
     ElMessage.success('删除成功')
@@ -115,6 +116,25 @@ const handleDelete = async (id: number) => {
     ElMessage.error('删除失败')
   }
 }
+
+
+const handleReissue = async (id: number) => {
+  await ElMessageBox.confirm('确定要补单吗？该操作将按新版规则重新发送异步通知', '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+ })
+
+  try {
+    await VmqService.reissueOrder(id)
+    ElMessage.success('补单成功')
+    fetchOrderList()
+  } catch (error: any) {
+    ElMessage.error(error?.message || '补单失败')
+  }
+}
+
+
 
 const handleCloseExpired = async () => {
   await ElMessageBox.confirm('确定要关闭所有超时订单吗？', '提示', {
@@ -154,7 +174,7 @@ const handleDeleteLast = async () => {
     cancelButtonText: '取消',
     type: 'warning',
   })
-  
+
   try {
     const res = await VmqService.deleteLastOrders()
     ElMessage.success(`成功删除了 ${res.count} 个历史订单`)
@@ -209,4 +229,4 @@ onMounted(() => {
 :deep(.status-select) {
   width: 160px;
 }
-</style> 
+</style>
