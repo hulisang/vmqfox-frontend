@@ -80,6 +80,7 @@ import { ElMessage } from 'element-plus'
 import QrCode from './QrCode.vue'
 import PaymentCountdown from './PaymentCountdown.vue'
 import { PaymentService, OrderInfo } from '@/api/paymentApi'
+import { HttpError } from '@/utils/http/error'
 import wechatPayLogo from '@/assets/img/payment/wechat-pay.png'
 import alipayLogo from '@/assets/img/payment/alipay.png'
 
@@ -144,8 +145,12 @@ const fetchOrderInfo = async () => {
       // 订单未支付，开始轮询
       startPolling()
     }
-  } catch (error) {
-    ElMessage.error('获取订单信息失败')
+  } catch (error: any) {
+    if (error instanceof HttpError) {
+      ElMessage.error(error.message)
+    } else {
+      ElMessage.error(error.message || '获取订单信息失败')
+    }
     expired.value = true
   } finally {
     loading.value = false

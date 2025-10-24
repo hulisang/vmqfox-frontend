@@ -90,6 +90,7 @@
   import type { FormInstance, FormRules } from 'element-plus'
   import { useI18n } from 'vue-i18n'
   import { VmqGoService } from '@/api/vmqGoApi'
+  import { HttpError } from '@/utils/http/error'
 
   defineOptions({ name: 'Register' })
 
@@ -181,8 +182,10 @@
       console.error('注册失败:', error)
 
       // 处理不同类型的错误
-      if (error.response?.data?.message) {
-        ElMessage.error(error.response.data.message)
+      if (error instanceof HttpError) {
+        // HttpError 已经包含了后端返回的具体错误消息
+        ElMessage.error(error.message)
+        console.error('[Register] API error:', error.toLogData())
       } else if (error.message) {
         ElMessage.error(error.message)
       } else {

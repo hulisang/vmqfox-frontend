@@ -32,6 +32,7 @@ import { ref } from 'vue'
 import { ElCard, ElDivider, ElSpace, ElButton, ElInput, ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/modules/user'
 import { VmqGoService } from '@/api/vmqGoApi'
+import { HttpError } from '@/utils/http/error'
 import axios from 'axios'
 
 const userStore = useUserStore()
@@ -67,8 +68,14 @@ const testLogin = async () => {
     
     ElMessage.success('登录成功')
   } catch (error: any) {
-    addResult(`登录失败: ${JSON.stringify(error.response?.data || error.message, null, 2)}`)
-    ElMessage.error('登录失败')
+    if (error instanceof HttpError) {
+      addResult(`登录失败: ${error.message}`)
+      addResult(`错误详情: ${JSON.stringify(error.toLogData(), null, 2)}`)
+      ElMessage.error(error.message)
+    } else {
+      addResult(`登录失败: ${JSON.stringify(error.response?.data || error.message, null, 2)}`)
+      ElMessage.error('登录失败')
+    }
   }
 }
 
@@ -85,9 +92,15 @@ const testGetUsers = async () => {
     addResult(`获取用户列表成功: ${JSON.stringify(response, null, 2)}`)
     ElMessage.success('获取用户列表成功')
   } catch (error: any) {
-    addResult(`获取用户列表失败: ${JSON.stringify(error.response?.data || error.message, null, 2)}`)
-    addResult(`错误状态码: ${error.response?.status}`)
-    ElMessage.error('获取用户列表失败')
+    if (error instanceof HttpError) {
+      addResult(`获取用户列表失败: ${error.message}`)
+      addResult(`错误详情: ${JSON.stringify(error.toLogData(), null, 2)}`)
+      ElMessage.error(error.message)
+    } else {
+      addResult(`获取用户列表失败: ${JSON.stringify(error.response?.data || error.message, null, 2)}`)
+      addResult(`错误状态码: ${error.response?.status}`)
+      ElMessage.error('获取用户列表失败')
+    }
   }
 }
 

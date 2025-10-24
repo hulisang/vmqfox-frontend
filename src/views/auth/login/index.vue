@@ -181,7 +181,9 @@
         .catch((error: any) => {
           // 这里捕获的是真正的API错误，而不是导航错误
           if (error instanceof HttpError) {
-            // 可以根据需要处理 HttpError
+            // HttpError 已经包含了后端返回的具体错误消息
+            ElMessage.error(error.message)
+            console.error('[Login] API error:', error.toLogData())
           } else {
             ElMessage.error(error.message || '登录失败，请稍后重试')
             console.error('[Login] Unexpected error:', error)

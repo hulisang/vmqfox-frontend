@@ -106,6 +106,7 @@
   import { VmqGoService } from '@/api/vmqGoApi'
   import { SearchChangeParams, SearchFormItem } from '@/types'
   import { useUserStore } from '@/store/modules/user'
+  import { HttpError } from '@/utils/http/error'
 
   defineOptions({ name: 'User' }) // 定义组件名称，用于 KeepAlive 缓存控制
 
@@ -434,12 +435,12 @@
       console.error('获取用户列表失败:', error)
 
       // 详细错误信息
-      if (error?.response?.status === 401) {
-        ElMessage.error('未授权访问，请先登录')
-      } else if (error?.response?.status === 403) {
-        ElMessage.error('权限不足，需要超级管理员权限')
-      } else if (error?.response?.data?.message) {
-        ElMessage.error(`获取用户列表失败: ${error.response.data.message}`)
+      if (error instanceof HttpError) {
+        // HttpError 已经包含了后端返回的具体错误消息
+        ElMessage.error(error.message)
+        console.error('[UserList] API error:', error.toLogData())
+      } else if (error.message) {
+        ElMessage.error(error.message)
       } else {
         ElMessage.error('获取用户列表失败，请检查网络连接和后端服务')
       }

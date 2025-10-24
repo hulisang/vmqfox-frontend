@@ -80,13 +80,13 @@ axiosInstance.interceptors.response.use(
     const { code, msg } = response.data
 
     // 定义一个包含所有可能成功状态码的列表
-    const SUCCESS_CODES = [ApiStatus.success, 1, 0]; 
+    const SUCCESS_CODES = [ApiStatus.success, 1, 0];
 
     // 如果返回的code在成功列表中，则直接返回响应
     if (SUCCESS_CODES.includes(code)) {
       return response
     }
-    
+
     // 单独处理需要特殊操作的状态码，如未授权
     if (code === ApiStatus.unauthorized) {
       logOut()
@@ -97,6 +97,11 @@ axiosInstance.interceptors.response.use(
     throw new HttpError(msg || $t('httpMsg.requestFailed'), code)
   },
   (error) => {
+    // 如果错误已经是 HttpError 类型（来自第一层拦截器），直接透传
+    if (error instanceof HttpError) {
+      return Promise.reject(error)
+    }
+    // 否则是网络错误（AxiosError），调用 handleError 处理
     return Promise.reject(handleError(error))
   }
 )
@@ -153,11 +158,8 @@ async function request<T = any>(config: ExtendedAxiosRequestConfig): Promise<T> 
     // 对于其他API，只返回data部分
     return res.data.data as T
   } catch (error) {
-    if (error instanceof HttpError) {
-      // 根据配置决定是否显示错误消息
-      const showErrorMessage = config.showErrorMessage !== false
-      showError(error, showErrorMessage)
-    }
+    // 不在这里自动显示错误消息，让各个页面自己决定如何处理错误
+    // 这样可以避免重复显示错误消息
     return Promise.reject(error)
   }
 }

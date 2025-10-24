@@ -103,7 +103,8 @@ import { CountTo } from 'vue3-count-to'
 import { useCommon } from '@/composables/useCommon'
 import { useMenuStore } from '@/store/modules/menu'
 import { useUserStore } from '@/store/modules/user'
-import { 
+import { HttpError } from '@/utils/http/error'
+import {
   Tickets, 
   Select, 
   CircleCheck, 
@@ -179,10 +180,14 @@ const refreshStats = async (showMessage = false) => {
       const modeText = viewMode.value === 'global' ? '全局' : '个人'
       ElMessage.success(`${modeText}订单数据刷新成功`)
     }
-  } catch (error) {
+  } catch (error: any) {
     console.error("刷新订单数据失败:", error)
     if (showMessage) {
-      ElMessage.error('刷新订单数据失败，请稍后重试')
+      if (error instanceof HttpError) {
+        ElMessage.error(error.message)
+      } else {
+        ElMessage.error(error.message || '刷新订单数据失败，请稍后重试')
+      }
     }
   }
 }

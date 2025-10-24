@@ -59,6 +59,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Loading } from '@element-plus/icons-vue'
 import { PaymentService, OrderInfo } from '@/api/paymentApi'
+import { HttpError } from '@/utils/http/error'
 
 const route = useRoute()
 const router = useRouter()
@@ -88,8 +89,12 @@ const fetchOrderInfo = async () => {
     } else {
       throw new Error('无效的订单数据')
     }
-  } catch (error) {
-    ElMessage.error('获取订单信息失败')
+  } catch (error: any) {
+    if (error instanceof HttpError) {
+      ElMessage.error(error.message)
+    } else {
+      ElMessage.error(error.message || '获取订单信息失败')
+    }
     success.value = false
   } finally {
     loading.value = false

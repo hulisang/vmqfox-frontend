@@ -13,7 +13,7 @@
         </el-form-item>
         
         <el-form-item label="后台密码" prop="pass">
-          <el-input v-model="formData.pass" type="password" placeholder="请输入后台密码"></el-input>
+          <el-input v-model="formData.pass" type="password" placeholder="留空则不修改密码，输入新密码则更新"></el-input>
         </el-form-item>
         
         <el-form-item label="订单有效期" prop="expireTime">
@@ -200,17 +200,19 @@ const formData = reactive({
 
 const rules = {
   user: [{ required: true, message: '请输入后台账号', trigger: 'blur' }],
-  pass: [{ required: true, message: '请输入后台密码', trigger: 'blur' }],
+  pass: [{ required: false, message: '请输入后台密码', trigger: 'blur' }],
   key: [{ required: true, message: '请输入通讯密钥', trigger: 'blur' }],
   appId: [
     { required: true, message: '请输入商户ID', trigger: 'blur' },
     { min: 6, max: 32, message: '商户ID长度应在6-32个字符之间', trigger: 'blur' },
     { pattern: /^[a-zA-Z0-9_-]+$/, message: '商户ID只能包含字母、数字、下划线和横线', trigger: 'blur' }
   ],
-  notifyUrl: [{ required: true, message: '请输入异步通知地址', trigger: 'blur' }],
+  // 异步回调地址改为非必填
+  notifyUrl: [{ required: false, message: '请输入异步通知地址', trigger: 'blur' }],
   expireTime: [{ required: true, message: '请输入订单有效时间', trigger: 'blur' }],
-  wxQrcode: [{ required: true, message: '请上传微信收款码', trigger: 'change' }],
-  zfbQrcode: [{ required: true, message: '请上传支付宝收款码', trigger: 'change' }]
+  // 微信码和支付宝码改为非必填
+  wxQrcode: [{ required: false, message: '请上传微信收款码', trigger: 'change' }],
+  zfbQrcode: [{ required: false, message: '请上传支付宝收款码', trigger: 'change' }]
 }
 
 // --- Lifecycle Hooks ---
