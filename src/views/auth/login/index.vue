@@ -146,7 +146,10 @@
 
   const rules = computed<FormRules>(() => ({
     username: [{ required: true, message: t('login.placeholder[0]'), trigger: 'blur' }],
-    password: [{ required: true, message: t('login.placeholder[1]'), trigger: 'blur' }]
+    password: [
+      { required: true, message: t('login.placeholder[1]'), trigger: 'blur' },
+      { min: 6, max: 50, message: '密码长度必须在6-50个字符之间', trigger: 'blur' }
+    ]
   }))
 
   const loading = ref(false)
