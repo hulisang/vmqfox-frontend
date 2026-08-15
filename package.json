@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --open",
-    "build": "vue-tsc --noEmit && vite build",
+    "build": "vite build && vue-tsc --noEmit",
     "serve": "vite preview",
     "lint": "eslint",
     "fix": "eslint --fix",
@@ -72,5 +72,6 @@
     "vue-demi": "^0.14.9",
     "vue-img-cutter": "^3.0.5",
     "vue-tsc": "~2.1.6"
-  }
+  },
+  "packageManager": "pnpm@11.21.0+sha512.521705bce689924eac72f5a3587122f362689ef6571e55ba80076fd637c11132ecffada26fad4ea79c485bfddbfd3d5a2a5b05805a77e893de71ec8a6cca3bb1"
 }

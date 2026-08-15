@@ -54,12 +54,12 @@
 }</pre>
 
             <h4>签名算法</h4>
-            <p>sign = md5(payId + param + type + price + 通讯密钥)</p>
+            <p>sign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&key=" + 通讯密钥)</p>
 
             <h4>响应示例</h4>
             <pre class="code-block">
 {
-  "code": 1,
+  "code": 200,
   "msg": "成功",
   "data": {
     "payId": "1547129707139",
@@ -97,7 +97,7 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/order/get</code>
+              <code>/api/order/get/:id</code>
             </el-alert>
 
             <h4>请求参数</h4>
@@ -116,7 +116,7 @@
             <h4>响应示例</h4>
             <pre class="code-block">
 {
-  "code": 1,
+  "code": 200,
   "msg": "成功",
   "data": {
     "payId": "1547129707139",
@@ -147,7 +147,7 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/order/check</code>
+              <code>/api/order/check/:id</code>
             </el-alert>
 
             <h4>请求参数</h4>
@@ -166,9 +166,14 @@
             <h4>响应示例</h4>
             <pre class="code-block">
 {
-  "code": 1,
+  "code": 200,
   "msg": "成功",
-  "data": "https://example.com/return?payId=1547130880571&param=vone666&type=2&price=0.1&reallyPrice=0.1&sign=c79f041bd5bc47d73bc19dc8406c9843"
+  "data": {
+    "remainingSeconds": 240,
+    "return_url": "https://example.com/return",
+    "param": "vone666",
+    "redirectUrl": "https://example.com/return"
+  }
 }</pre>
           </div>
         </el-collapse-item>
@@ -186,8 +191,10 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/order/close</code>
+              <code>/api/order/close/:id</code>
             </el-alert>
+
+            <p>仅管理员可调用。请求头必须包含 <code>Authorization: &lt;accessToken&gt;</code>。</p>
 
             <h4>请求参数</h4>
             <el-table :data="closeOrderParams" style="width: 100%">
@@ -202,13 +209,13 @@
               <el-table-column prop="description" label="说明" />
             </el-table>
 
-            <h4>签名算法</h4>
-            <p>sign = md5(orderId + 通讯密钥)</p>
+            <h4>鉴权</h4>
+            <p>使用管理 Token（Authorization 请求头），无需商户签名。</p>
 
             <h4>响应示例</h4>
             <pre class="code-block">
 {
-  "code": 1,
+  "code": 200,
   "msg": "成功",
   "data": null
 }</pre>
@@ -228,34 +235,20 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/monitor/state</code>
+              <code>/api/config/monitor</code>
             </el-alert>
 
-            <h4>请求参数</h4>
-            <el-table :data="getStateParams" style="width: 100%">
-              <el-table-column prop="param" label="参数" width="150" />
-              <el-table-column prop="type" label="类型" width="150" />
-              <el-table-column prop="required" label="必填" width="80">
-                <template #default="scope">
-                  <el-tag v-if="scope.row.required" type="danger" size="small">是</el-tag>
-                  <el-tag v-else type="info" size="small">否</el-tag>
-                </template>
-              </el-table-column>
-              <el-table-column prop="description" label="说明" />
-            </el-table>
-
-            <h4>签名算法</h4>
-            <p>sign = md5(t + 通讯密钥)</p>
+            <p>仅管理员可调用。请求头必须包含 <code>Authorization: &lt;accessToken&gt;</code>，无需监控签名。</p>
 
             <h4>响应示例</h4>
             <pre class="code-block">
 {
-  "code": 1,
+  "code": 200,
   "msg": "成功",
   "data": {
     "lastpay": "1547394640",
     "lastheart": "1547613873",
-    "state": "1"
+    "jkstate": "1"
   }
 }</pre>
           </div>
@@ -270,8 +263,8 @@
             </div>
           </template>
           <div class="api-content">
-            <p>当系统收到用户收款后，将会向您设定的异步通知地址发送GET请求，通知您的服务端订单完成收款。</p>
-            <p>若您使用的是前端页面跳转，则在支付完成后会携带参数跳转到您的同步通知接口。</p>
+            <p>当系统收到用户收款后，将会向您设定的异步通知地址发送 POST 请求（<code>Content-Type: application/x-www-form-urlencoded</code>），通知您的服务端订单完成收款。</p>
+            <p>若您使用的是前端页面跳转（同步通知），则在支付完成后会携带 Query 参数以 GET 形式重定向到您的同步跳转接口。</p>
 
             <h4>回调参数</h4>
             <el-table :data="callbackParams" style="width: 100%">
@@ -281,7 +274,7 @@
             </el-table>
 
             <h4>签名算法</h4>
-            <p>sign = md5(payId + param + type + price + reallyPrice + 通讯密钥)</p>
+            <p>sign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&reallyPrice=" + reallyPrice + "&key=" + 通讯密钥)</p>
 
             <h4>PHP回调示例代码</h4>
             <pre class="code-block">
@@ -291,22 +284,25 @@ ini_set("error_reporting","E_ALL & ~E_NOTICE");
 
 $key = "83d551f0b3609781a22536ca2658473d";//通讯密钥
 
-$payId = $_GET['payId'];//商户订单号
-$param = $_GET['param'];//创建订单的时候传入的参数
-$type = $_GET['type'];//支付方式 ：微信支付为1 支付宝支付为2
-$price = $_GET['price'];//订单金额
-$reallyPrice = $_GET['reallyPrice'];//实际支付金额
-$sign = $_GET['sign'];//校验签名，计算方式 = md5(payId + param + type + price + reallyPrice + 通讯密钥)
+// 异步回调采用 POST 表单方式推送
+$payId = $_POST['payId'];//平台订单号
+$param = $_POST['param'];//创建订单的时候传入的自定义参数
+$type = $_POST['type'];//支付方式 ：微信支付为1 支付宝支付为2
+$price = $_POST['price'];//订单金额
+$reallyPrice = $_POST['reallyPrice'];//实际支付金额
+$sign = $_POST['sign'];//校验签名
 
-//开始校验签名
-$_sign =  md5($payId . $param . $type . $price . $reallyPrice . $key);
-if ($_sign != $sign) {
+//开始校验签名（新版键值对格式）
+$_sign = md5("payId=" . $payId . "&param=" . $param . "&type=" . $type . "&price=" . $price . "&reallyPrice=" . $reallyPrice . "&key=" . $key);
+if ($_sign !== $sign) {
     echo "error_sign";//sign校验不通过
     exit();
 }
 
+// 处理业务逻辑（如给用户发货、充值等）
+
+// 成功必须输出 success，否则系统将按照退避策略发起重试
 echo "success";
-//继续业务流程
 ?&gt;</pre>
           </div>
         </el-collapse-item>
@@ -323,7 +319,7 @@ const createOrderParams = [
   { param: 'payId', type: '字符串', required: true, description: '商户订单号，可以是时间戳，不可重复' },
   { param: 'type', type: '整数', required: true, description: '微信支付传入1 支付宝支付传入2' },
   { param: 'price', type: '小数', required: true, description: '订单金额' },
-  { param: 'sign', type: '字符串', required: true, description: '签名，计算方式为 md5(payId+param+type+price+通讯密钥)' },
+  { param: 'sign', type: '字符串', required: true, description: '签名，计算方式为 新版字段拼接 MD5（见接口签名说明）' },
   { param: 'param', type: '字符串', required: false, description: '传输参数，将会原样返回到异步和同步通知接口' },
   { param: 'notifyUrl', type: '字符串', required: false, description: '传入则设置该订单的异步通知接口为该参数，不传或传空则使用后台设置的接口' },
   { param: 'returnUrl', type: '字符串', required: false, description: '传入则设置该订单的同步跳转接口为该参数，不传或传空则使用后台设置的接口' }
@@ -345,25 +341,21 @@ const createOrderResponse = [
 
 // 查询订单参数
 const getOrderParams = [
-  { param: 'orderId', type: '字符串', required: true, description: '云端订单号，创建订单返回的' }
+  { param: 'id', type: '字符串', required: true, description: '订单号，位于 URL 路径中' }
 ]
 
 // 查询订单状态参数
 const checkOrderParams = [
-  { param: 'orderId', type: '字符串', required: true, description: '云端订单号，创建订单返回的' }
+  { param: 'id', type: '字符串', required: true, description: '订单号，位于 URL 路径中' }
 ]
 
 // 关闭订单参数
 const closeOrderParams = [
-  { param: 'orderId', type: '字符串', required: true, description: '云端订单号，创建订单返回的' },
-  { param: 'sign', type: '字符串', required: true, description: 'md5(云端订单号+通讯密钥)' }
+  { param: 'id', type: '整数', required: true, description: '数据库内部订单 ID，位于 URL 路径中' }
 ]
 
 // 查询服务端状态参数
-const getStateParams = [
-  { param: 't', type: '长整数', required: true, description: '现行时间戳' },
-  { param: 'sign', type: '字符串', required: true, description: 'md5(现行时间戳+通讯密钥)' }
-]
+const getStateParams: Array<{ param: string; type: string; required: boolean; description: string }> = []
 
 // 回调参数
 const callbackParams = [
@@ -372,7 +364,7 @@ const callbackParams = [
   { param: 'type', type: '整数', description: '支付方式 ：微信支付为1 支付宝支付为2' },
   { param: 'price', type: '小数', description: '订单金额' },
   { param: 'reallyPrice', type: '小数', description: '实际支付金额' },
-  { param: 'sign', type: '字符串', description: '校验签名，计算方式 = md5(payId + param + type + price + reallyPrice + 通讯密钥)' }
+  { param: 'sign', type: '字符串', description: '新版字段拼接 MD5，规则见上方说明' }
 ]
 </script>
 
