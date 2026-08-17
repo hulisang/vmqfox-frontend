@@ -116,6 +116,16 @@ export const vmqRoutes: AppRouteRecord[] = [
     },
   },
   {
+    path: '/testOrder',
+    name: 'TestOrder',
+    component: '/vmq/testOrder/index',
+    meta: {
+      title: '测试订单',
+      icon: '&#xe748;',
+      roles: ['admin']
+    },
+  },
+  {
     path: '/api',
     name: 'ApiDoc',
     component: '/vmq/api/index',
@@ -125,4 +135,4 @@ export const vmqRoutes: AppRouteRecord[] = [
       roles: ['admin']
     },
   }
-] 
+]

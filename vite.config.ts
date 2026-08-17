@@ -40,7 +40,7 @@ export default ({ mode }) => {
           changeOrigin: true
         },
         // 添加兼容旧版API的代理规则
-        '^/(appHeart|appPush|createOrder|checkOrder|getOrder)': {
+        '^/(createOrder|checkOrder|getOrder)': {
           target: backendUrl, // 使用环境变量配置的后端地址
           changeOrigin: true
         }

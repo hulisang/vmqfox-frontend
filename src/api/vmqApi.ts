@@ -309,6 +309,66 @@ export class VmqService {
       data: { state }
     })
   }
+
+  /**
+   * 创建订单（发起支付）
+   */
+  static async createOrder(data: CreateOrderParams) {
+    return api.post<any>({
+      url: '/api/order/create',
+      data
+    })
+  }
+
+  /**
+   * 模拟监控端推送支付成功（测试联调用，与 vmqApk /api/monitor/push 端点一致）
+   */
+  static async appPush(data: AppPushParams) {
+    return api.get<any>({
+      url: '/api/monitor/push',
+      params: data
+    })
+  }
+
+  /**
+   * 查询订单详情
+   */
+  static async getOrderDetail(orderId: string) {
+    return api.get<any>({
+      url: `/api/order/detail/${orderId}`
+    })
+  }
+}
+
+export interface CreateOrderParams {
+  payId: string
+  type: number | string
+  price: string | number
+  sign: string
+  param?: string
+  isHtml?: number | string
+  notifyUrl?: string
+  returnUrl?: string
+}
+
+export interface CreateOrderResult {
+  payId: string
+  orderId: string
+  payType: number
+  price: number
+  reallyPrice: number
+  payUrl: string
+  isAuto: number
+  state: number
+  timeOut: number
+  date: number
+}
+
+export interface AppPushParams {
+  t: string | number
+  type: number | string
+  price: string | number
+  sign: string
 }
 
 /**

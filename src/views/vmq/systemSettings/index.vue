@@ -9,11 +9,16 @@
 
       <el-form ref="formRef" :model="formData" label-width="120px" :rules="rules">
         <el-form-item label="后台账号" prop="user">
-          <el-input v-model="formData.user" placeholder="请输入后台账号"></el-input>
+          <el-input v-model="formData.user" placeholder="请输入后台账号（留空则保持原账号）"></el-input>
         </el-form-item>
 
         <el-form-item label="后台密码" prop="pass">
-          <el-input v-model="formData.pass" type="password" placeholder="请输入后台密码"></el-input>
+          <el-input
+            v-model="formData.pass"
+            type="password"
+            show-password
+            placeholder="请输入新密码（留空则保持原密码）"
+          ></el-input>
         </el-form-item>
 
         <el-form-item label="订单有效期" prop="expireTime">
@@ -108,11 +113,14 @@
   import { ref, reactive, onMounted } from 'vue'
   import { ElMessage, type FormInstance, type UploadFile, type UploadProps } from 'element-plus'
   import { VmqService } from '@/api/vmqApi'
+  import { useUserStore } from '@/store/modules/user'
   import jsQR from 'jsqr'
 
   // --- State and Data ---
+  const userStore = useUserStore()
   const formRef = ref<FormInstance>()
   const loading = ref(false)
+  const initialUser = ref('')
   const formData = reactive({
     user: '',
     pass: '',
@@ -132,8 +140,21 @@
   })
 
   const rules = {
-    user: [{ required: true, message: '请输入后台账号', trigger: 'blur' }],
-    pass: [{ required: true, message: '请输入后台密码', trigger: 'blur' }],
+    user: [
+      { max: 128, message: '账号长度不能超过128个字符', trigger: 'blur' }
+    ],
+    pass: [
+      {
+        validator: (_rule: any, value: string, callback: any) => {
+          if (value && (value.length < 8 || value.length > 72)) {
+            callback(new Error('密码长度必须在 8 到 72 位之间'))
+          } else {
+            callback()
+          }
+        },
+        trigger: 'blur'
+      }
+    ],
     key: [{ required: true, message: '请输入通讯密钥', trigger: 'blur' }],
     expireTime: [{ required: true, message: '请输入订单有效时间', trigger: 'blur' }]
   }
@@ -149,8 +170,9 @@
     try {
       const res = await VmqService.getSettings()
       if (res) {
+        initialUser.value = res.user || ''
         formData.user = res.user || ''
-        formData.pass = res.pass || ''
+        formData.pass = ''
         formData.notifyUrl = res.notifyUrl || '' // 修正字段名
         formData.returnUrl = res.returnUrl || '' // 修正字段名
         formData.key = res.key || ''
@@ -182,8 +204,23 @@
       submitData.notifyUrl = formData.notifyUrl
       submitData.returnUrl = formData.returnUrl
 
+      // 判断账号或密码是否发生变更
+      const isPasswordChanged = Boolean(formData.pass && formData.pass.trim() !== '')
+      const isUserChanged = Boolean(
+        formData.user && formData.user.trim() !== '' && formData.user.trim() !== initialUser.value
+      )
+      const isCredentialChanged = isPasswordChanged || isUserChanged
+
       await VmqService.updateSettings(submitData)
-      ElMessage.success('系统设置保存成功')
+
+      if (isCredentialChanged) {
+        ElMessage.success('管理员凭据已修改，正在退出并跳转至登录页...')
+        setTimeout(() => {
+          userStore.logOut()
+        }, 1200)
+      } else {
+        ElMessage.success('系统设置保存成功')
+      }
     } catch (error) {
       console.error('保存系统设置失败:', error)
       ElMessage.error('保存系统设置失败')

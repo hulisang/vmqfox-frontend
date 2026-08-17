@@ -211,14 +211,19 @@
       networkError.value = false
 
       // 根据后端状态码处理不同情况
-      if (response && response.redirectUrl) {
-        // 支付成功，有跳转地址
-        console.log('订单支付成功，准备跳转:', response.redirectUrl)
+      if (response && (response.state === 1 || response.redirectUrl)) {
         clearInterval(checkTimer!)
         clearAutoRefreshTimer()
-
-        // 调用函数处理跳转，而不是直接跳转
-        await handleSuccessfulPaymentRedirect(response.redirectUrl)
+        if (response.redirectUrl) {
+          // 支付成功，有外部跳转地址
+          console.log('订单支付成功，准备跳转:', response.redirectUrl)
+          await handleSuccessfulPaymentRedirect(response.redirectUrl)
+        } else {
+          // 支付成功，但未配置外部 returnUrl，跳转到系统自带的支付结果页
+          console.log('订单支付成功，跳转到系统支付结果页')
+          ElMessage.success('支付成功！')
+          router.replace(`/payment/result/${orderId.value}`)
+        }
       } else if (response && response.state === -1) {
         // 订单过期
         console.log('订单已过期')

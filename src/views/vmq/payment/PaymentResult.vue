@@ -2,49 +2,97 @@
   <div class="result-container">
     <el-card class="result-card">
       <div v-if="loading" class="loading-state">
-        <el-skeleton :rows="3" animated />
+        <el-skeleton :rows="4" animated />
       </div>
-      
+
       <template v-else>
+        <!-- 支付成功状态 -->
         <div v-if="success" class="success-state">
           <el-result
             icon="success"
             title="支付成功"
-            sub-title="正在跳转到商户网站..."
+            :sub-title="isRedirecting ? '正在跳转到商户网站...' : '资金已成功到账，请勿重复支付'"
           >
             <template #extra>
-              <div class="redirect-info">
+              <div v-if="isRedirecting" class="redirect-info">
                 <el-icon class="is-loading"><Loading /></el-icon>
                 <span>{{ redirectMessage }}</span>
               </div>
             </template>
           </el-result>
 
+          <!-- 客户定心丸与客服维权凭证提示卡片 -->
+          <div class="customer-notice-box">
+            <div class="notice-item success-item">
+              <el-icon class="notice-icon"><CircleCheckFilled /></el-icon>
+              <span><strong>支付状态确认</strong>：您的款项已成功扣除并到账，资金安全无虞，<strong>切勿重复付款</strong>。</span>
+            </div>
+            <div class="notice-item info-item-tip">
+              <el-icon class="notice-icon"><InfoFilled /></el-icon>
+              <span><strong>未自动到账/发货提示</strong>：若商户系统未自动为您发放商品或开通权益，属于商户系统回调延迟，请保存下方<strong>【商户单号】</strong>直接联系商户客服核对处理。</span>
+            </div>
+          </div>
+
+          <!-- 订单明细卡片 -->
           <div class="order-info">
             <div class="info-item">
-              <span class="label">订单金额：</span>
-              <span class="value">¥{{ orderInfo.price }}</span>
+              <span class="label">实付金额：</span>
+              <span class="value price-highlight">¥{{ orderInfo.reallyPrice || orderInfo.price }}</span>
             </div>
             <div class="info-item">
-              <span class="label">订单编号：</span>
-              <span class="value">{{ orderInfo.payId }}</span>
+              <span class="label">商户单号：</span>
+              <div class="value-with-btn">
+                <span class="value code-font">{{ orderInfo.payId }}</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  :icon="CopyDocument"
+                  @click="copyText(orderInfo.payId)"
+                >
+                  复制单号
+                </el-button>
+              </div>
+            </div>
+            <div class="info-item">
+              <span class="label">系统订单号：</span>
+              <div class="value-with-btn">
+                <span class="value code-font">{{ orderInfo.orderId }}</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  link
+                  :icon="CopyDocument"
+                  @click="copyText(orderInfo.orderId)"
+                >
+                  复制
+                </el-button>
+              </div>
             </div>
             <div class="info-item">
               <span class="label">支付方式：</span>
               <span class="value">{{ orderInfo.payType === 1 ? '微信支付' : '支付宝支付' }}</span>
             </div>
           </div>
+
+          <!-- 底部操作按钮 -->
+          <div v-if="targetReturnUrl" class="action-footer mt-4">
+            <el-button type="primary" size="large" @click="goToMerchant">
+              立即返回商户网站
+            </el-button>
+          </div>
         </div>
-        
+
+        <!-- 支付失败或未完成状态 -->
         <div v-else class="failed-state">
           <el-result
             icon="error"
-            title="支付失败"
-            sub-title="订单支付未完成或已超时"
+            title="支付未完成"
+            sub-title="该订单尚未检测到付款到账，或已超时失效"
           >
             <template #extra>
-              <el-button @click="retryPayment">重新支付</el-button>
-              <el-button type="primary" @click="goToMerchant">返回商户网站</el-button>
+              <el-button @click="retryPayment">重新发起支付</el-button>
+              <el-button v-if="targetReturnUrl" type="primary" @click="goToMerchant">返回商户网站</el-button>
             </template>
           </el-result>
         </div>
@@ -54,280 +102,269 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import { Loading } from '@element-plus/icons-vue'
-import { PaymentService, OrderInfo } from '@/api/paymentApi'
+  import { ref, onMounted } from 'vue'
+  import { useRoute, useRouter } from 'vue-router'
+  import { ElMessage } from 'element-plus'
+  import { Loading, CopyDocument, CircleCheckFilled, InfoFilled } from '@element-plus/icons-vue'
+  import { PaymentService, OrderInfo } from '@/api/paymentApi'
 
-const route = useRoute()
-const router = useRouter()
-const orderId = route.params.orderId as string
-const returnUrl = route.query.returnUrl as string || ''
+  const route = useRoute()
+  const router = useRouter()
+  const orderId = route.params.orderId as string
+  const returnUrlParam = (route.query.returnUrl as string) || ''
 
-const loading = ref(true)
-const success = ref(false)
-const orderInfo = ref<OrderInfo>({} as OrderInfo)
-const redirectMessage = ref('正在获取跳转地址...')
+  const loading = ref(true)
+  const success = ref(false)
+  const isRedirecting = ref(false)
+  const targetReturnUrl = ref('')
+  const orderInfo = ref<OrderInfo>({} as OrderInfo)
+  const redirectMessage = ref('正在获取跳转地址...')
 
-// 获取订单信息
-const fetchOrderInfo = async () => {
-  loading.value = true
-  try {
-    const orderData = await PaymentService.getOrder(orderId)
+  // 获取订单信息
+  const fetchOrderInfo = async () => {
+    loading.value = true
+    try {
+      const orderData = await PaymentService.getOrder(orderId)
+      if (orderData) {
+        orderInfo.value = orderData
+        // state: 1 (已支付), 2 (通知失败但已支付) 均视为客户付款成功
+        success.value = orderData.state === 1 || orderData.state === 2
 
-    // 检查数据有效性
-    if (orderData) {
-      orderInfo.value = orderData
-      success.value = orderData.state === 1 // 1表示支付成功
-
-      // 如果支付成功，自动跳转到商户网站
-      if (success.value) {
-        await handleAutoRedirect()
-      }
-    } else {
-      throw new Error('无效的订单数据')
-    }
-  } catch (error) {
-    ElMessage.error('获取订单信息失败')
-    success.value = false
-  } finally {
-    loading.value = false
-  }
-}
-
-// 自动跳转到商户网站
-const handleAutoRedirect = async () => {
-  try {
-    redirectMessage.value = '正在生成跳转地址...'
-
-    // 尝试通过API获取带签名的返回URL
-    const response = await PaymentService.getReturnUrl(orderId)
-    console.log('获取到带签名的返回URL:', response)
-
-    if (response && response.returnUrl) {
-      redirectMessage.value = '即将跳转到商户网站...'
-
-      // 延迟1秒后跳转，让用户看到成功信息
-      setTimeout(() => {
-        console.log('跳转到后端生成的返回URL:', response.returnUrl)
-        window.location.href = response.returnUrl
-      }, 1000)
-    } else {
-      // 如果API返回失败，尝试使用URL参数中的returnUrl
-      if (returnUrl) {
-        redirectMessage.value = '即将跳转到商户网站...'
-        setTimeout(() => {
-          console.log('使用URL参数中的返回URL:', returnUrl)
-          window.location.href = returnUrl
-        }, 1000)
+        if (success.value) {
+          await handleAutoRedirect()
+        }
       } else {
-        throw new Error('无法获取有效的返回URL')
+        throw new Error('无效的订单数据')
       }
+    } catch (error) {
+      console.error('获取订单信息失败:', error)
+      ElMessage.error('获取订单信息失败')
+      success.value = false
+    } finally {
+      loading.value = false
     }
-  } catch (error) {
-    console.error('自动跳转失败:', error)
-    redirectMessage.value = '自动跳转失败，请手动返回商户网站'
-    ElMessage.warning('自动跳转失败，请联系商户')
   }
-}
 
-// 返回商户网站（备用方法，现在主要用于失败情况）
-const goToMerchant = () => {
-  if (returnUrl) {
-    window.location.href = returnUrl
-  } else {
-    window.history.back()
+  // 自动跳转到商户网站处理
+  const handleAutoRedirect = async () => {
+    try {
+      const response = await PaymentService.getReturnUrl(orderId)
+      const validUrl = response?.returnUrl || returnUrlParam
+
+      if (validUrl && validUrl.trim() !== '') {
+        targetReturnUrl.value = validUrl
+        isRedirecting.value = true
+        redirectMessage.value = '即将跳转到商户网站...'
+
+        // 延迟 1.8 秒后跳转，让用户看清成功提示
+        setTimeout(() => {
+          window.location.href = validUrl
+        }, 1800)
+      } else {
+        // 无有效返回 URL，停留在本页
+        isRedirecting.value = false
+      }
+    } catch (error) {
+      console.warn('获取返回URL失败或无配置，停留在本地结果页:', error)
+      isRedirecting.value = false
+    }
   }
-}
 
-// 重新支付
-const retryPayment = () => {
-  router.push(`/payment/${orderId}`)
-}
+  // 手动返回商户网站
+  const goToMerchant = () => {
+    if (targetReturnUrl.value) {
+      window.location.href = targetReturnUrl.value
+    } else {
+      window.history.back()
+    }
+  }
 
-onMounted(() => {
-  fetchOrderInfo()
-})
+  // 重新支付
+  const retryPayment = () => {
+    router.push(`/payment/${orderId}`)
+  }
+
+  // 复制文本
+  const copyText = async (text: string) => {
+    if (!text) return
+    try {
+      await navigator.clipboard.writeText(text)
+      ElMessage.success('已复制单号到剪贴板')
+    } catch (e) {
+      ElMessage.error('复制失败，请长按手动复制')
+    }
+  }
+
+  onMounted(() => {
+    fetchOrderInfo()
+  })
 </script>
 
 <style lang="scss" scoped>
-@use '@/assets/styles/variables.scss' as *;
+  @use '@/assets/styles/variables.scss' as *;
 
-.result-container {
-  width: 100%;
-  margin: 0;
-  padding: 0;
-}
-
-.result-card {
-  background: var(--art-main-bg-color);
-  border: 1px solid var(--art-border-color);
-  border-radius: calc(var(--custom-radius, 0.75rem) + 4px);
-  box-shadow: var(--art-box-shadow-sm);
-  overflow: hidden;
-
-  :deep(.el-card__body) {
-    padding: 40px 32px;
-  }
-}
-
-.loading-state {
-  padding: 60px 20px;
-  text-align: center;
-}
-
-.success-state, .failed-state {
-  padding: 20px 0;
-
-  :deep(.el-result) {
-    padding: 20px 0;
+  .result-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 30px auto;
+    padding: 0 16px;
   }
 
-  :deep(.el-result__title) {
-    color: var(--art-text-gray-900);
-    font-weight: 600;
-    font-size: 24px;
-    margin: 16px 0;
-  }
-
-  :deep(.el-result__subtitle) {
-    color: var(--art-text-gray-600);
-    font-size: 16px;
-    margin-bottom: 24px;
-  }
-
-  :deep(.el-result__extra) {
-    margin-top: 32px;
-
-    .el-button {
-      margin: 0 8px;
-      padding: 12px 24px;
-      font-weight: 500;
-      border-radius: calc(var(--custom-radius, 0.75rem));
-    }
-  }
-}
-
-.order-info {
-  margin-top: 32px;
-  padding: 24px;
-  background: var(--art-gray-100);
-  border: 1px solid var(--art-border-color);
-  border-radius: calc(var(--custom-radius, 0.75rem));
-}
-
-.info-item {
-  display: flex;
-  margin-bottom: 16px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--art-border-color);
-
-  &:last-child {
-    border-bottom: none;
-    margin-bottom: 0;
-  }
-}
-
-.label {
-  color: var(--art-text-gray-600);
-  width: 120px;
-  font-weight: 500;
-  flex-shrink: 0;
-}
-
-.value {
-  color: var(--art-text-gray-800);
-  font-weight: 600;
-  word-break: break-all;
-}
-
-// 响应式设计
-@media only screen and (max-width: $device-ipad) {
   .result-card {
+    background: var(--art-main-bg-color, #ffffff);
+    border: 1px solid var(--art-border-color, #ebeef5);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+    overflow: hidden;
+
     :deep(.el-card__body) {
       padding: 32px 24px;
     }
   }
 
-  .success-state, .failed-state {
-    :deep(.el-result__title) {
-      font-size: 22px;
-    }
-
-    :deep(.el-result__subtitle) {
-      font-size: 15px;
-    }
-  }
-
-  .order-info {
-    padding: 20px;
-  }
-}
-
-@media only screen and (max-width: $device-phone) {
-  .result-card {
-    :deep(.el-card__body) {
-      padding: 24px 20px;
-    }
-  }
-
   .loading-state {
-    padding: 40px 15px;
+    padding: 40px 20px;
+    text-align: center;
   }
 
-  .success-state, .failed-state {
+  .success-state,
+  .failed-state {
+    :deep(.el-result) {
+      padding: 10px 0 20px;
+    }
+
     :deep(.el-result__title) {
-      font-size: 20px;
+      color: var(--el-text-color-primary, #303133);
+      font-weight: 600;
+      font-size: 22px;
+      margin: 12px 0 6px;
     }
 
     :deep(.el-result__subtitle) {
+      color: var(--el-text-color-secondary, #606266);
       font-size: 14px;
+      margin-bottom: 12px;
     }
+  }
 
-    :deep(.el-result__extra) {
-      margin-top: 24px;
+  .customer-notice-box {
+    background: #fdf6ec;
+    border: 1px solid #faecd8;
+    border-radius: 8px;
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    font-size: 13px;
+    line-height: 1.6;
 
-      .el-button {
-        margin: 4px;
-        padding: 10px 20px;
-        font-size: 14px;
+    .notice-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 8px;
+
+      &:last-child {
+        margin-bottom: 0;
+      }
+
+      .notice-icon {
+        font-size: 16px;
+        margin-right: 8px;
+        margin-top: 2px;
+        flex-shrink: 0;
+      }
+
+      &.success-item {
+        color: #67c23a;
+        .notice-icon {
+          color: #67c23a;
+        }
+        span {
+          color: #529b2e;
+        }
+      }
+
+      &.info-item-tip {
+        color: #e6a23c;
+        .notice-icon {
+          color: #e6a23c;
+        }
+        span {
+          color: #b88230;
+        }
       }
     }
   }
 
   .order-info {
-    margin-top: 24px;
-    padding: 16px;
+    padding: 16px 20px;
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
   }
 
   .info-item {
-    margin-bottom: 12px;
-    padding: 8px 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 0;
+    border-bottom: 1px solid #edf2f7;
+
+    &:last-child {
+      border-bottom: none;
+    }
   }
 
   .label {
-    width: 80px;
-    font-size: 14px;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 500;
+    flex-shrink: 0;
   }
 
   .value {
+    color: #1e293b;
+    font-weight: 600;
     font-size: 14px;
-  }
-}
+    word-break: break-all;
 
-// 跳转信息样式
-.redirect-info {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  color: var(--art-text-gray-600);
-  font-size: 14px;
+    &.code-font {
+      font-family: monospace;
+      font-size: 13px;
+    }
 
-  .el-icon {
-    font-size: 16px;
-    color: var(--art-primary);
+    &.price-highlight {
+      color: #e11d48;
+      font-size: 18px;
+    }
   }
-}
+
+  .value-with-btn {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .action-footer {
+    display: flex;
+    justify-content: center;
+    margin-top: 20px;
+
+    .el-button {
+      width: 100%;
+      border-radius: 8px;
+    }
+  }
+
+  .redirect-info {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    color: #3b82f6;
+    font-size: 13px;
+    margin-top: 4px;
+
+    .el-icon {
+      font-size: 15px;
+    }
+  }
 </style>
