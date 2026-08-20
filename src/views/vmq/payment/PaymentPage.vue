@@ -107,6 +107,7 @@
   import QrCode from './QrCode.vue'
   import PaymentCountdown from './PaymentCountdown.vue'
   import { PaymentService, OrderInfo } from '@/api/paymentApi'
+  import { navigateTo } from '@/utils/navigation/safeUrl'
 
   const route = useRoute()
   const router = useRouter()
@@ -145,14 +146,6 @@
         // 如果后端没有返回剩余秒数，使用传统方式计算
         remainingSeconds.value = orderData.timeOut * 60
       }
-
-      // 调试信息
-      console.log('订单信息:', JSON.stringify(orderData, null, 2))
-      console.log('订单超时时间(分钟):', orderData.timeOut)
-      console.log('订单创建时间戳:', orderData.date)
-      console.log('订单创建时间:', new Date(orderData.date * 1000).toLocaleString())
-      console.log('后端返回的剩余秒数:', orderData.remainingSeconds)
-      console.log('实际使用的剩余秒数:', remainingSeconds.value)
 
       // 检查初始订单状态
       if (orderData.state === 1) {
@@ -201,9 +194,6 @@
 
       const response = await PaymentService.checkOrder(orderId.value)
 
-      // 调试信息
-      console.log('检查订单状态响应:', response)
-
       // 重置错误计数
       errorCount = 0
 
@@ -216,11 +206,9 @@
         clearAutoRefreshTimer()
         if (response.redirectUrl) {
           // 支付成功，有外部跳转地址
-          console.log('订单支付成功，准备跳转:', response.redirectUrl)
           await handleSuccessfulPaymentRedirect(response.redirectUrl)
         } else {
           // 支付成功，但未配置外部 returnUrl，跳转到系统自带的支付结果页
-          console.log('订单支付成功，跳转到系统支付结果页')
           ElMessage.success('支付成功！')
           router.replace(`/payment/result/${orderId.value}`)
         }
@@ -270,26 +258,25 @@
     }
   }
 
-  // 处理支付成功后的跳转
+  // 处理支付成功后的跳转：后端带签名回跳地址优先，协议不合规的地址一律不跳
   const handleSuccessfulPaymentRedirect = async (redirectUrl: string) => {
+    const candidates: string[] = []
     try {
-      // 尝试通过API获取带签名的返回URL
       const response = await PaymentService.getReturnUrl(orderId.value)
-      console.log('获取到带签名的返回URL:', response)
-
-      if (response && response.returnUrl) {
-        // 使用后端生成的带签名的返回URL
-        console.log('跳转到后端生成的返回URL:', response.returnUrl)
-        window.location.href = response.returnUrl
-      } else {
-        // 如果API返回失败，使用原始的重定向URL
-        console.warn('API未返回有效的返回URL，使用原始重定向URL')
-        window.location.href = redirectUrl
+      if (response?.returnUrl) {
+        candidates.push(response.returnUrl)
       }
-    } catch (error) {
-      console.error('获取带签名的返回URL失败，使用原始重定向URL:', error)
-      // 发生错误时使用原始的重定向URL
-      window.location.href = redirectUrl
+    } catch {
+      console.warn('获取带签名的返回URL失败，回退到默认跳转地址')
+    }
+    if (redirectUrl) {
+      candidates.push(redirectUrl)
+    }
+
+    const redirected = candidates.some((candidate) => navigateTo(candidate))
+    if (!redirected) {
+      ElMessage.warning('商户回跳地址不可用，已停留在支付结果页')
+      router.replace(`/payment/result/${orderId.value}`)
     }
   }
 

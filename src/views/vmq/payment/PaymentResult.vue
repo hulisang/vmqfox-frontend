@@ -107,6 +107,7 @@
   import { ElMessage } from 'element-plus'
   import { Loading, CopyDocument, CircleCheckFilled, InfoFilled } from '@element-plus/icons-vue'
   import { PaymentService, OrderInfo } from '@/api/paymentApi'
+  import { safeHttpUrl, navigateTo } from '@/utils/navigation/safeUrl'
 
   const route = useRoute()
   const router = useRouter()
@@ -144,36 +145,34 @@
     }
   }
 
-  // 自动跳转到商户网站处理
+  // 自动跳转到商户网站处理：只接受 http(s) 回跳地址，其余一律停留本页
   const handleAutoRedirect = async () => {
     try {
       const response = await PaymentService.getReturnUrl(orderId)
-      const validUrl = response?.returnUrl
+      const validUrl = safeHttpUrl(response?.returnUrl ?? '')
 
-      if (validUrl && validUrl.trim() !== '') {
+      if (validUrl) {
         targetReturnUrl.value = validUrl
         isRedirecting.value = true
         redirectMessage.value = '即将跳转到商户网站...'
 
         // 延迟 1.8 秒后跳转，让用户看清成功提示
         setTimeout(() => {
-          window.location.href = validUrl
+          navigateTo(validUrl)
         }, 1800)
       } else {
         // 无有效返回 URL，停留在本页
         isRedirecting.value = false
       }
-    } catch (error) {
-      console.warn('获取返回URL失败或无配置，停留在本地结果页:', error)
+    } catch {
+      console.warn('获取返回URL失败或无配置，停留在本地结果页')
       isRedirecting.value = false
     }
   }
 
   // 手动返回商户网站
   const goToMerchant = () => {
-    if (targetReturnUrl.value) {
-      window.location.href = targetReturnUrl.value
-    } else {
+    if (!navigateTo(targetReturnUrl.value)) {
       window.history.back()
     }
   }

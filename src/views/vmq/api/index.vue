@@ -47,14 +47,19 @@
   "payId": "1547129707139",
   "type": 2,
   "price": 0.1,
-  "sign": "2b8b5d58c51203162f14939bdbc46a54",
+  "sign": "&lt;hmac_sha256 结果，64 位小写 hex&gt;",
   "param": "vone666",
   "notifyUrl": "https://example.com/notify",
   "returnUrl": "https://example.com/return"
 }</pre>
 
-            <h4>签名算法</h4>
-            <p>sign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&key=" + 通讯密钥)</p>
+            <h4>签名算法（v2）</h4>
+            <p>sign = hmac_sha256(通讯密钥, "payId=" + payId + "&amp;param=" + param + "&amp;type=" + type + "&amp;price=" + price + "&amp;notifyUrl=" + notifyUrl + "&amp;returnUrl=" + returnUrl)</p>
+            <el-alert type="warning" :closable="false" style="margin-bottom: 12px">
+              通讯密钥作为 HMAC 密钥参与运算，不再拼接进签名明文；结果取 64 位小写 hex。
+              price 需定标为两位小数，且必须与请求中提交的 price 完全一致；notifyUrl / returnUrl
+              未传时以空串参与签名。v1 的 MD5 签名已停止受理。
+            </el-alert>
 
             <h4>响应示例</h4>
             <pre class="code-block">
@@ -273,28 +278,29 @@
               <el-table-column prop="description" label="说明" />
             </el-table>
 
-            <h4>签名算法</h4>
-            <p>sign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&reallyPrice=" + reallyPrice + "&key=" + 通讯密钥)</p>
+            <h4>签名算法（v2）</h4>
+            <p>sign = hmac_sha256(通讯密钥, "payId=" + payId + "&amp;param=" + param + "&amp;type=" + type + "&amp;price=" + price + "&amp;reallyPrice=" + reallyPrice)</p>
 
             <h4>PHP回调示例代码</h4>
             <pre class="code-block">
 &lt;?php
 
-ini_set("error_reporting","E_ALL & ~E_NOTICE");
+ini_set("error_reporting","E_ALL &amp; ~E_NOTICE");
 
 $key = "83d551f0b3609781a22536ca2658473d";//通讯密钥
 
 // 异步回调采用 POST 表单方式推送
-$payId = $_POST['payId'];//平台订单号
+$payId = $_POST['payId'];//商户订单号
 $param = $_POST['param'];//创建订单的时候传入的自定义参数
 $type = $_POST['type'];//支付方式 ：微信支付为1 支付宝支付为2
 $price = $_POST['price'];//订单金额
 $reallyPrice = $_POST['reallyPrice'];//实际支付金额
 $sign = $_POST['sign'];//校验签名
 
-//开始校验签名（新版键值对格式）
-$_sign = md5("payId=" . $payId . "&param=" . $param . "&type=" . $type . "&price=" . $price . "&reallyPrice=" . $reallyPrice . "&key=" . $key);
-if ($_sign !== $sign) {
+//开始校验签名（v2：HMAC-SHA-256，密钥不拼入明文）
+$canonical = "payId=" . $payId . "&amp;param=" . $param . "&amp;type=" . $type . "&amp;price=" . $price . "&amp;reallyPrice=" . $reallyPrice;
+$_sign = hash_hmac("sha256", $canonical, $key);
+if (!hash_equals($_sign, (string)$sign)) {
     echo "error_sign";//sign校验不通过
     exit();
 }
@@ -319,7 +325,7 @@ const createOrderParams = [
   { param: 'payId', type: '字符串', required: true, description: '商户订单号，可以是时间戳，不可重复' },
   { param: 'type', type: '整数', required: true, description: '微信支付传入1 支付宝支付传入2' },
   { param: 'price', type: '小数', required: true, description: '订单金额' },
-  { param: 'sign', type: '字符串', required: true, description: '签名，计算方式为 新版字段拼接 MD5（见接口签名说明）' },
+  { param: 'sign', type: '字符串', required: true, description: '签名，v2 为 HMAC-SHA-256（见接口签名说明），64 位小写 hex' },
   { param: 'param', type: '字符串', required: false, description: '传输参数，将会原样返回到异步和同步通知接口' },
   { param: 'notifyUrl', type: '字符串', required: false, description: '传入则设置该订单的异步通知接口为该参数，不传或传空则使用后台设置的接口' },
   { param: 'returnUrl', type: '字符串', required: false, description: '传入则设置该订单的同步跳转接口为该参数，不传或传空则使用后台设置的接口' }
@@ -364,7 +370,7 @@ const callbackParams = [
   { param: 'type', type: '整数', description: '支付方式 ：微信支付为1 支付宝支付为2' },
   { param: 'price', type: '小数', description: '订单金额' },
   { param: 'reallyPrice', type: '小数', description: '实际支付金额' },
-  { param: 'sign', type: '字符串', description: '新版字段拼接 MD5，规则见上方说明' }
+  { param: 'sign', type: '字符串', description: 'v2 HMAC-SHA-256 签名，规则见上方说明' }
 ]
 </script>
 

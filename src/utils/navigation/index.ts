@@ -3,5 +3,6 @@
  */
 
 export * from './jump'
+export * from './safeUrl'
 export * from './worktab'
 export * from './route'

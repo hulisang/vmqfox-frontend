@@ -46,7 +46,7 @@
                   <el-button @click="fetchSystemKey">读取配置</el-button>
                 </template>
               </el-input>
-              <div class="field-tip">与后台系统设置中的通讯密钥保持一致，用于 MD5 签名计算。</div>
+              <div class="field-tip">与后台系统设置中的通讯密钥保持一致，作为 HMAC-SHA-256 的签名密钥。</div>
             </el-form-item>
 
             <el-form-item label="商户单号 (payId)" prop="payId" required>
@@ -124,14 +124,16 @@
               ></el-input>
             </el-form-item>
 
-            <!-- MD5 实时签名卡片 -->
+            <!-- v2 签名实时预览卡片 -->
             <div class="sign-preview-box mb-4">
               <div class="sign-header">
-                <span class="sign-title">🔐 MD5 实时签名算法预览</span>
-                <el-tag size="small" type="success">实时计算</el-tag>
+                <span class="sign-title">🔐 v2 签名算法预览（HMAC-SHA-256）</span>
+                <el-tag size="small" :type="signVectorPassed ? 'success' : 'danger'">
+                  {{ signVectorPassed ? '黄金向量自检通过' : '黄金向量不一致，三端协议已漂移' }}
+                </el-tag>
               </div>
               <div class="sign-formula">
-                <code>sign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&key=" + key)</code>
+                <code>sign = hmac_sha256(key, "payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&notifyUrl=" + notifyUrl + "&returnUrl=" + returnUrl)</code>
               </div>
               <div class="sign-string">
                 <span class="label">待签原串：</span>
@@ -318,7 +320,7 @@
                       </el-tag>
                     </div>
                     <code class="verify-formula">
-                      notifySign = md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&reallyPrice=" + reallyPrice + "&key=" + key)
+                      notifySign = hmac_sha256(key, "payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&reallyPrice=" + reallyPrice)
                     </code>
                     <div class="verify-detail mt-2">
                       <div>待签原串: <code>{{ webhookRawString }}</code></div>
@@ -388,9 +390,19 @@
     CircleCloseFilled,
     InfoFilled
   } from '@element-plus/icons-vue'
-  import CryptoJS from 'crypto-js'
   import { VmqService, type CreateOrderResult } from '@/api/vmqApi'
   import { PaymentService } from '@/api/paymentApi'
+  import {
+    amountText,
+    callbackCanonical,
+    callbackSign,
+    createOrderCanonical,
+    createOrderSign,
+    pushSign,
+    signTimestamp,
+    verifySignVectors
+  } from '@/api/vmqSign'
+  import { openInNewTab } from '@/utils/navigation/safeUrl'
 
   // --- 表单与状态定义 ---
   const formRef = ref<FormInstance>()
@@ -426,38 +438,54 @@
   const createRawResponse = ref<any>(null)
   const checkRawResponse = ref<any>(null)
 
-  // --- 签名计算逻辑 ---
-  // 创建订单签名：md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&key=" + key)
-  const rawSignString = computed(() => {
-    return `payId=${formData.payId}&param=${formData.param}&type=${formData.type}&price=${formData.price}&key=${formData.key}`
-  })
+  // --- 签名计算逻辑（v2：HMAC-SHA-256，canonical 串与后端 payment 域逐字节一致）---
+  // 浏览器端 HMAC 实现与后端/安卓端黄金向量的一致性自检，不一致说明三端协议已经漂移
+  const signVectorPassed = verifySignVectors().every((item) => item.ok)
+
+  // 金额定标两位小数，签名串与请求参数必须复用同一份文本
+  const priceText = computed(() => amountText(formData.price))
+
+  const createSignFields = computed(() => ({
+    payId: formData.payId,
+    param: formData.param,
+    type: formData.type,
+    price: priceText.value,
+    notifyUrl: formData.notifyUrl,
+    returnUrl: formData.returnUrl
+  }))
+
+  const rawSignString = computed(() => createOrderCanonical(createSignFields.value))
 
   const calculatedSign = computed(() => {
-    if (!formData.key || !formData.payId || !formData.price) return ''
-    return CryptoJS.MD5(rawSignString.value).toString()
+    if (!formData.key || !formData.payId || !priceText.value) return ''
+    return createOrderSign(createSignFields.value, formData.key)
   })
 
-  // 回调签名计算：md5("payId=" + payId + "&param=" + param + "&type=" + type + "&price=" + price + "&reallyPrice=" + reallyPrice + "&key=" + key)
-  const webhookRawString = computed(() => {
-    if (!currentOrder.value) return ''
-    const rPrice = currentOrder.value.reallyPrice || currentOrder.value.price
-    return `payId=${currentOrder.value.payId}&param=${formData.param}&type=${currentOrder.value.payType}&price=${currentOrder.value.price}&reallyPrice=${rPrice}&key=${formData.key}`
+  const callbackFields = computed(() => {
+    const value = currentOrder.value
+    if (!value) return null
+    return {
+      payId: value.payId,
+      param: formData.param,
+      type: value.payType,
+      price: amountText(value.price),
+      reallyPrice: amountText(value.reallyPrice || value.price)
+    }
   })
 
-  const webhookSign = computed(() => {
-    if (!webhookRawString.value) return ''
-    return CryptoJS.MD5(webhookRawString.value).toString()
-  })
+  const webhookRawString = computed(() =>
+    callbackFields.value ? callbackCanonical(callbackFields.value) : ''
+  )
+
+  const webhookSign = computed(() =>
+    callbackFields.value && formData.key ? callbackSign(callbackFields.value, formData.key) : ''
+  )
 
   // Webhook Payload 模拟展示
   const webhookPayloadFormatted = computed(() => {
-    if (!currentOrder.value) return '{}'
+    if (!callbackFields.value) return '{}'
     const payload = {
-      payId: currentOrder.value.payId,
-      param: formData.param,
-      type: currentOrder.value.payType,
-      price: currentOrder.value.price.toString(),
-      reallyPrice: (currentOrder.value.reallyPrice || currentOrder.value.price).toString(),
+      ...callbackFields.value,
       sign: webhookSign.value,
       state: orderStatusState.value
     }
@@ -466,15 +494,14 @@
 
   // 同步跳转完整 URL
   const completeReturnUrl = computed(() => {
-    if (!currentOrder.value) return ''
+    if (!callbackFields.value) return ''
     const base = formData.returnUrl || window.location.origin
-    const rPrice = currentOrder.value.reallyPrice || currentOrder.value.price
     const params = new URLSearchParams({
-      payId: currentOrder.value.payId,
-      param: formData.param,
-      type: currentOrder.value.payType.toString(),
-      price: currentOrder.value.price.toString(),
-      reallyPrice: rPrice.toString(),
+      payId: callbackFields.value.payId,
+      param: callbackFields.value.param,
+      type: String(callbackFields.value.type),
+      price: callbackFields.value.price,
+      reallyPrice: callbackFields.value.reallyPrice,
       sign: webhookSign.value
     })
     return `${base}${base.includes('?') ? '&' : '?'}${params.toString()}`
@@ -636,7 +663,7 @@
         const payload = {
           payId: formData.payId,
           type: formData.type,
-          price: formData.price,
+          price: priceText.value,
           sign: calculatedSign.value,
           param: formData.param,
           isHtml: 0,
@@ -672,29 +699,30 @@
       return
     }
     const payUrl = `/#/payment/${currentOrder.value.orderId}`
-    window.open(payUrl, '_blank')
+    openInNewTab(payUrl)
   }
 
-  // 模拟监控端推送
-  // 模拟监控端推送 (与 vmqApk 保持 100% 协议一致)
+  // 模拟监控端推送 (与 vmqApk 保持 100% 协议一致：v2 HMAC-SHA-256 + 毫秒时间戳)
   const handleMockPush = async () => {
     if (!currentOrder.value) {
       ElMessage.warning('请先创建测试订单')
       return
     }
+    if (!formData.key) {
+      ElMessage.warning('请先填写通讯密钥，签名无法计算')
+      return
+    }
     pushLoading.value = true
     try {
-      const t = Math.floor(Date.now() / 1000).toString()
-      const reallyPrice = (currentOrder.value.reallyPrice || currentOrder.value.price).toString()
-      // 监控端推送签名：md5(type + price + t + key)
-      const pushRaw = `${currentOrder.value.payType}${reallyPrice}${t}${formData.key}`
-      const pushSign = CryptoJS.MD5(pushRaw).toString()
+      const pushFields = {
+        type: currentOrder.value.payType,
+        price: amountText(currentOrder.value.reallyPrice || currentOrder.value.price),
+        t: signTimestamp()
+      }
 
       await VmqService.appPush({
-        t,
-        type: currentOrder.value.payType,
-        price: reallyPrice,
-        sign: pushSign
+        ...pushFields,
+        sign: pushSign(pushFields, formData.key)
       })
 
       ElMessage.success('⚡ 模拟监控端推送成功！系统已匹配到款项')

@@ -1,9 +1,12 @@
 import { AppRouteRecord } from '@/types/router'
 import { router } from '@/router'
+import { openInNewTab } from './safeUrl'
 
-// 打开外部链接
+// 打开外部链接：仅允许 http(s)，非法协议直接忽略而不是交给浏览器执行
 export const openExternalLink = (link: string) => {
-  window.open(link, '_blank')
+  if (!openInNewTab(link)) {
+    console.warn('[navigation] 已拦截非 http(s) 外部链接')
+  }
 }
 
 /**
