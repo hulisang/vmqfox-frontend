@@ -57,9 +57,6 @@
                 show-password
               />
             </ElFormItem>
-            <div class="login-tips">
-              <p class="tips-text">默认用户名admin，默认密码admin，请登陆后及时修改</p>
-            </div>
             <div class="drag-verify">
               <div class="drag-verify-content" :class="{ error: !isPassing && isClickPass }">
                 <ArtDragVerify
@@ -82,7 +79,6 @@
               <ElCheckbox v-model="formData.rememberPassword">{{
                 $t('login.rememberPwd')
               }}</ElCheckbox>
-              <RouterLink :to="RoutesAlias.ForgetPassword">{{ $t('login.forgetPwd') }}</RouterLink>
             </div>
 
             <div style="margin-top: 30px">
@@ -95,13 +91,6 @@
               >
                 {{ $t('login.btnText') }}
               </ElButton>
-            </div>
-
-            <div class="footer">
-              <p>
-                {{ $t('login.noAccount') }}
-                <RouterLink :to="RoutesAlias.Register">{{ $t('login.register') }}</RouterLink>
-              </p>
             </div>
           </ElForm>
         </div>

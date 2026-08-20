@@ -12,18 +12,6 @@ export const staticRoutes: AppRouteRecordRaw[] = [
     component: () => import('@views/auth/login/index.vue'),
     meta: { title: 'menus.login.title', isHideTab: true, setTheme: true }
   },
-  {
-    path: RoutesAlias.Register,
-    name: 'Register',
-    component: () => import('@views/auth/register/index.vue'),
-    meta: { title: 'menus.register.title', isHideTab: true, noLogin: true, setTheme: true }
-  },
-  {
-    path: RoutesAlias.ForgetPassword,
-    name: 'ForgetPassword',
-    component: () => import('@views/auth/forget-password/index.vue'),
-    meta: { title: 'menus.forgetPassword.title', isHideTab: true, noLogin: true, setTheme: true }
-  },
   // 支付页面路由 - 完全独立于后台管理
   {
     path: '/payment',

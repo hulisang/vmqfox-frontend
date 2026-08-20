@@ -134,7 +134,6 @@ const downloadLatestMonitor = () => {
 const fetchMonitorStatus = async () => {
   try {
     const response = await VmqService.getMonitorStatus()
-    console.log('监控端状态API响应:', response)
     
     // 检查响应格式，适配后端返回的格式
     // 如果response本身就是data，说明axios拦截器已经提取了data字段
@@ -153,7 +152,6 @@ const fetchMonitorStatus = async () => {
         try {
           // 尝试从系统设置获取key
           const settingsResponse = await VmqService.getSettings()
-          console.log('系统设置API响应:', settingsResponse)
           
           if (settingsResponse && settingsResponse.key) {
             const host = window.location.host
@@ -161,12 +159,10 @@ const fetchMonitorStatus = async () => {
             configData.value = configUrl
             qrcodeUrl.value = `/api/qrcode/generate?url=${encodeURIComponent(configUrl)}`
           } else {
-            console.error('无法获取通讯密钥(key)')
             configData.value = '无法获取配置数据，请检查系统设置'
             qrcodeUrl.value = ''
           }
         } catch (settingsError) {
-          console.error('获取系统设置失败:', settingsError)
           configData.value = '获取配置数据失败'
           qrcodeUrl.value = ''
         }

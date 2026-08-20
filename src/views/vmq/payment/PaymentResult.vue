@@ -111,7 +111,6 @@
   const route = useRoute()
   const router = useRouter()
   const orderId = route.params.orderId as string
-  const returnUrlParam = (route.query.returnUrl as string) || ''
 
   const loading = ref(true)
   const success = ref(false)
@@ -149,7 +148,7 @@
   const handleAutoRedirect = async () => {
     try {
       const response = await PaymentService.getReturnUrl(orderId)
-      const validUrl = response?.returnUrl || returnUrlParam
+      const validUrl = response?.returnUrl
 
       if (validUrl && validUrl.trim() !== '') {
         targetReturnUrl.value = validUrl

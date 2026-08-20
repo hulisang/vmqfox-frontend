@@ -59,15 +59,6 @@ export class VmqService {
   }
 
   /**
-   * 获取菜单数据
-   */
-  static async getMenu() {
-    return api.get<any>({
-      url: `/api/menu`
-    })
-  }
-
-  /**
    * 获取订单列表
    * @param params 查询参数
    */
@@ -134,84 +125,6 @@ export class VmqService {
     return api.del<ApiResponse<any>>({
       url: `/api/qrcode/alipay/${id}`
     })
-  }
-
-  /**
-   * 上传微信二维码图片
-   */
-  static async uploadWxQrcode(formData: FormData) {
-    const { accessToken } = useUserStore()
-    const headers: Record<string, string> = {}
-    if (accessToken) {
-      headers['Authorization'] = accessToken
-    }
-
-    // 使用 fetch API 发送请求，确保 FormData 被正确处理
-    const response = await fetch(`/api/qrcode/parse`, {
-      method: 'POST',
-      headers,
-      body: formData
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ msg: `HTTP 错误，状态码: ${response.status}` }))
-      throw new Error(errorData.msg || '上传失败')
-    }
-
-    return response.json()
-  }
-
-  /**
-   * 上传支付宝二维码图片
-   */
-  static async uploadZfbQrcode(formData: FormData) {
-    return api.post<any>({
-      url: `/api/qrcode/parse`,
-      data: formData,
-      headers: {
-        'Content-Type': 'multipart/form-data'
-      }
-    })
-  }
-
-  /**
-   * 解析二维码
-   */
-  static async parseQrcode(qrcodeData: string) {
-    // 此方法已不再需要，因为我们现在直接上传文件
-    // 保留此空方法或移除它都可以，为了安全起见，我们先注释掉其内容
-    /*
-    try {
-      console.log('调用parseQrcode方法，数据长度:', qrcodeData.length)
-
-      const formData = new FormData()
-
-      const byteCharacters = atob(qrcodeData)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: 'image/png' })
-
-      formData.append('file', blob, 'qrcode.png')
-
-      const response = await api.post<any>({
-        url: `/api/qrcode/parse`,
-        data: formData,
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      })
-
-      console.log('解析二维码API调用成功:', response)
-      return response
-    } catch (error) {
-      console.error('解析二维码API调用失败:', error)
-      throw error
-    }
-    */
-    return Promise.resolve()
   }
 
   /**
@@ -327,15 +240,6 @@ export class VmqService {
     return api.get<any>({
       url: '/api/monitor/push',
       params: data
-    })
-  }
-
-  /**
-   * 查询订单详情
-   */
-  static async getOrderDetail(orderId: string) {
-    return api.get<any>({
-      url: `/api/order/detail/${orderId}`
     })
   }
 }

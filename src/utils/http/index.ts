@@ -152,16 +152,16 @@ const api = {
     return retryRequest<T>({ ...config, method: 'GET' })
   },
   post<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
-    return retryRequest<T>({ ...config, method: 'POST' })
+    return request<T>({ ...config, method: 'POST' })
   },
   put<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
-    return retryRequest<T>({ ...config, method: 'PUT' })
+    return request<T>({ ...config, method: 'PUT' })
   },
   del<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
-    return retryRequest<T>({ ...config, method: 'DELETE' })
+    return request<T>({ ...config, method: 'DELETE' })
   },
   request<T>(config: ExtendedAxiosRequestConfig): Promise<T> {
-    return retryRequest<T>({ ...config })
+    return request<T>({ ...config })
   }
 }
 

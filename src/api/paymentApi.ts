@@ -14,8 +14,6 @@ export interface OrderInfo {
   timeOut: number
   date: number
   remainingSeconds?: number
-  return_url?: string
-  param?: string
 }
 
 // 定义订单检查响应接口
@@ -23,8 +21,6 @@ export interface OrderCheckResponse {
   state?: number
   redirectUrl?: string
   remainingSeconds?: number
-  return_url?: string
-  param?: string
 }
 
 // 定义返回URL响应接口

@@ -144,7 +144,6 @@ const refreshStats = async (showMessage = false) => {
       ElMessage.success('订单数据刷新成功')
     }
   } catch (error) {
-    console.error("刷新订单数据失败:", error)
     if (showMessage) {
       ElMessage.error('刷新订单数据失败，请稍后重试')
     }
@@ -168,7 +167,6 @@ const refreshData = async () => {
     
     ElMessage.success('数据刷新成功')
   } catch (error) {
-    console.error("刷新数据失败:", error)
     ElMessage.error('刷新数据失败，请稍后重试')
   } finally {
     loading.value = false

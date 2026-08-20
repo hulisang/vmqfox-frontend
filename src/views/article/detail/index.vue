@@ -2,7 +2,9 @@
   <div class="article-detail page-content">
     <div class="content">
       <h1>{{ articleTitle }}</h1>
-      <div class="markdown-body" v-highlight v-html="articleHtml"></div>
+      <div class="markdown-body">
+        <p class="article-text">{{ articleContent }}</p>
+      </div>
     </div>
     <ArtBackToTop />
   </div>
@@ -13,15 +15,13 @@
   import '@/assets/styles/one-dark-pro.scss'
   import { useCommon } from '@/composables/useCommon'
   import axios from 'axios'
-  // import 'highlight.js/styles/atom-one-dark.css';
-  // import 'highlight.js/styles/vs2015.css';
 
   defineOptions({ name: 'ArticleDetail' })
 
   const articleId = ref(0)
   const router = useRoute()
   const articleTitle = ref('')
-  const articleHtml = ref('')
+  const articleContent = ref('')
 
   onMounted(() => {
     useCommon().scrollToTop()
@@ -31,10 +31,15 @@
 
   const getArticleDetail = async () => {
     if (articleId.value) {
-      const res = await axios.get('https://www.qiniu.lingchen.kim/blog_detail.json')
-      if (res.data.code === 200) {
-        articleTitle.value = res.data.data.title
-        articleHtml.value = res.data.data.html_content
+      try {
+        const res = await axios.get('https://www.qiniu.lingchen.kim/blog_detail.json')
+        if (res.data.code === 200) {
+          articleTitle.value = res.data.data.title
+          // 纯文本展示，不作为可执行 HTML 渲染，阻断 XSS 路径
+          articleContent.value = res.data.data.content || res.data.data.title || ''
+        }
+      } catch (e) {
+        articleTitle.value = '文章加载失败'
       }
     }
   }
