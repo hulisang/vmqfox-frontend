@@ -117,7 +117,7 @@ pnpm dev
 
 # 访问地址
 # 管理后台：http://localhost:3006
-# 支付页面：http://localhost:3006/payment/:orderId
+# 支付页面：http://localhost:3006/payment/:publicToken
 ```
 
 ## 配置说明
@@ -352,7 +352,7 @@ proxy: {
    http://localhost
 
    # 支付页面
-   http://localhost/payment/:orderId
+   http://localhost/payment/:publicToken
    ```
 
 ## 开发指南
@@ -432,7 +432,7 @@ MIT License - 详见 [LICENSE](./LICENSE) 文件
 
 ## 相关链接
 
-- [后端项目](https://github.com/hulisang/vmqfox-backend) - ThinkPHP 8 后端API服务
+- [后端项目](https://github.com/hulisang/vmqfox-backend) - 单用户 Go 语言免签支付网关 (Go-only)
 - [V免签原版](https://github.com/szvone/vmqphp) - 基于ThinkPHP 5.1的原版
 - [监控端APK](https://github.com/szvone/VmqApk) - Android监控应用
 - [art-design-pro](https://www.lingchen.kim/art-design-pro/docs/) - UI框架文档
