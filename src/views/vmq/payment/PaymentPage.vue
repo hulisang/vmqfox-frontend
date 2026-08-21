@@ -41,7 +41,7 @@
 
       <div v-else-if="networkError" class="payment-error">
         <el-alert type="warning" show-icon :closable="false">
-          网络连接异常，但您仍可继续扫码支付。完成支付后请刷新页面查看结果。
+          {{ rateLimited ? `请求过于频繁，请 ${retryAfterSeconds} 秒后重试。` : '网络连接异常，但您仍可继续扫码支付。完成支付后请刷新页面查看结果。' }}
         </el-alert>
         <el-button type="primary" @click="refreshPage" class="mt-4">刷新页面</el-button>
       </div>
@@ -111,15 +111,18 @@
 
   const route = useRoute()
   const router = useRouter()
-  const orderId = computed(() => route.params.orderId as string)
+  const publicToken = computed(() => route.params.publicToken as string)
 
   const loading = ref(true)
   const expired = ref(false)
   const orderInfo = ref<OrderInfo>({} as OrderInfo)
   const remainingSeconds = ref(0)
   const networkError = ref(false)
+  const rateLimited = ref(false)
+  const retryAfterSeconds = ref(0)
   let checkTimer: number | null = null
   let autoRefreshTimer: number | null = null
+  let checkInFlight = false
 
   // 支付方式名称
   const payTypeName = computed(() => {
@@ -136,8 +139,11 @@
   const fetchOrderInfo = async () => {
     loading.value = true
     try {
-      const orderData = await PaymentService.getOrder(orderId.value)
+      const orderData = await PaymentService.getOrder(publicToken.value)
       orderInfo.value = orderData
+      networkError.value = false
+      rateLimited.value = false
+      retryAfterSeconds.value = 0
 
       // 使用后端返回的剩余秒数
       if (orderData.remainingSeconds !== undefined) {
@@ -151,7 +157,7 @@
       if (orderData.state === 1) {
         // 如果订单已支付，直接跳转到结果页
         ElMessage.success('订单已支付，正在跳转...')
-        router.replace(`/payment/result/${orderId.value}`)
+        router.replace(`/payment/result/${publicToken.value}`)
         return
       }
 
@@ -163,6 +169,11 @@
         startPolling()
       }
     } catch (error) {
+      const httpError = error as { code?: number; retryAfter?: number }
+      if (httpError.code === 429) {
+        handleRateLimit(httpError.retryAfter, fetchOrderInfo)
+        return
+      }
       console.error('获取订单信息失败:', error)
       ElMessage.error('获取订单信息失败')
       expired.value = true
@@ -171,162 +182,148 @@
     }
   }
 
-  // 开始轮询订单状态
+  // 停止轮询订单状态
+  const stopPolling = () => {
+    if (checkTimer !== null) {
+      clearInterval(checkTimer)
+      checkTimer = null
+    }
+  }
+
+  // 开始轮询订单状态；同一时刻最多保留一个轮询器。
   const startPolling = () => {
-    checkOrderStatus()
-    // 每3秒检查一次订单状态（原来是1.5秒，延长间隔减轻服务器压力）
-    checkTimer = window.setInterval(checkOrderStatus, 3000)
+    if (checkTimer !== null || expired.value || remainingSeconds.value <= 0) return
+    void checkOrderStatus()
+    checkTimer = window.setInterval(() => {
+      void checkOrderStatus()
+    }, 3000)
   }
 
   // 连续错误计数
   let errorCount = 0
-  const MAX_ERROR_COUNT = 3 // 最大允许连续错误次数
+  const MAX_ERROR_COUNT = 3
 
   // 检查订单状态
   const checkOrderStatus = async () => {
+    if (checkInFlight || expired.value || remainingSeconds.value <= 0) {
+      if (expired.value || remainingSeconds.value <= 0) stopPolling()
+      return
+    }
+    checkInFlight = true
     try {
-      // 如果订单已过期，停止轮询
-      if (expired.value || remainingSeconds.value <= 0) {
-        console.log('订单已过期或剩余时间为0，停止轮询')
-        clearInterval(checkTimer!)
-        return
-      }
-
-      const response = await PaymentService.checkOrder(orderId.value)
-
-      // 重置错误计数
+      const response = await PaymentService.checkOrder(publicToken.value)
       errorCount = 0
-
-      // 重置网络错误状态
       networkError.value = false
+      rateLimited.value = false
+      retryAfterSeconds.value = 0
 
-      // 根据后端状态码处理不同情况
-      if (response && (response.state === 1 || response.redirectUrl)) {
-        clearInterval(checkTimer!)
-        clearAutoRefreshTimer()
-        if (response.redirectUrl) {
-          // 支付成功，有外部跳转地址
-          await handleSuccessfulPaymentRedirect(response.redirectUrl)
-        } else {
-          // 支付成功，但未配置外部 returnUrl，跳转到系统自带的支付结果页
-          ElMessage.success('支付成功！')
-          router.replace(`/payment/result/${orderId.value}`)
-        }
-      } else if (response && response.state === -1) {
-        // 订单过期
-        console.log('订单已过期')
+      // 服务端只返回状态与剩余时间；支付成功后再单独请求已验证的回跳地址。
+      if (response?.state === 1) {
+        stopPolling()
+        clearRetryTimer()
+        await handleSuccessfulPaymentRedirect()
+      } else if (response?.state === -1) {
         expired.value = true
-        clearInterval(checkTimer!)
-        clearAutoRefreshTimer()
-      } else {
-        // 未支付状态，继续轮询
-        console.log('订单未支付，继续轮询')
-
-        // 更新剩余时间
-        if (response && response.remainingSeconds !== undefined) {
-          console.log('订单剩余时间(秒):', response.remainingSeconds)
-          remainingSeconds.value = response.remainingSeconds
-
-          // 如果剩余时间小于等于0，设置为过期
-          if (remainingSeconds.value <= 0) {
-            console.log('订单剩余时间为0，设置为过期状态')
-            expired.value = true
-            clearInterval(checkTimer!)
-            clearAutoRefreshTimer()
-          }
+        stopPolling()
+        clearRetryTimer()
+      } else if (response?.remainingSeconds !== undefined) {
+        remainingSeconds.value = response.remainingSeconds
+        if (remainingSeconds.value <= 0) {
+          expired.value = true
+          stopPolling()
+          clearRetryTimer()
         }
       }
     } catch (error) {
+      const httpError = error as { code?: number; retryAfter?: number }
+      if (httpError.code === 429) {
+        handleRateLimit(httpError.retryAfter, startPolling)
+        return
+      }
+
       errorCount++
       console.error(`检查订单状态失败 (${errorCount}/${MAX_ERROR_COUNT})`, error)
-
-      // 如果连续错误次数超过阈值，停止轮询
       if (errorCount >= MAX_ERROR_COUNT) {
-        console.error('连续错误次数过多，停止轮询')
-        clearInterval(checkTimer!)
-
-        // 设置网络错误状态
+        stopPolling()
+        rateLimited.value = false
         networkError.value = true
-
-        // 显示友好的错误提示
         ElMessage.warning('网络连接异常，请完成支付后刷新页面查看结果')
-
-        // 启动自动刷新定时器
-        startAutoRefreshTimer()
+        scheduleRetry(30, startPolling)
       }
-      // 否则继续尝试，不中断轮询
+    } finally {
+      checkInFlight = false
     }
   }
 
-  // 处理支付成功后的跳转：后端带签名回跳地址优先，协议不合规的地址一律不跳
-  const handleSuccessfulPaymentRedirect = async (redirectUrl: string) => {
-    const candidates: string[] = []
+  // 处理支付成功后的跳转：只使用服务端验证并签名的地址。
+  const handleSuccessfulPaymentRedirect = async () => {
     try {
-      const response = await PaymentService.getReturnUrl(orderId.value)
-      if (response?.returnUrl) {
-        candidates.push(response.returnUrl)
+      const response = await PaymentService.getReturnUrl(publicToken.value)
+      const validUrl = response?.returnUrl
+      if (validUrl && navigateTo(validUrl)) {
+        return
       }
     } catch {
-      console.warn('获取带签名的返回URL失败，回退到默认跳转地址')
+      console.warn('获取带签名的返回URL失败，停留在默认结果页')
     }
-    if (redirectUrl) {
-      candidates.push(redirectUrl)
-    }
-
-    const redirected = candidates.some((candidate) => navigateTo(candidate))
-    if (!redirected) {
-      ElMessage.warning('商户回跳地址不可用，已停留在支付结果页')
-      router.replace(`/payment/result/${orderId.value}`)
-    }
+    ElMessage.success('支付成功！')
+    router.replace(`/payment/result/${publicToken.value}`)
   }
 
-  // 启动自动刷新定时器
-  const startAutoRefreshTimer = () => {
-    // 每30秒自动刷新一次页面，尝试恢复连接
-    if (!autoRefreshTimer) {
-      console.log('启动自动刷新定时器')
-      autoRefreshTimer = window.setInterval(() => {
-        console.log('执行自动刷新')
-        window.location.reload()
-      }, 30000)
-    }
+  // 限流只按服务端 Retry-After 暂停一次；不触发全局重试或页面自动重载。
+  const handleRateLimit = (retryAfter: number | undefined, retryTask: () => void) => {
+    stopPolling()
+    networkError.value = true
+    rateLimited.value = true
+    retryAfterSeconds.value = Math.min(Math.max(retryAfter ?? 5, 1), 60)
+    ElMessage.warning(`请求过于频繁，请 ${retryAfterSeconds.value} 秒后重试`)
+    scheduleRetry(retryAfterSeconds.value, retryTask)
   }
 
-  // 清除自动刷新定时器
-  const clearAutoRefreshTimer = () => {
-    if (autoRefreshTimer) {
-      console.log('清除自动刷新定时器')
-      clearInterval(autoRefreshTimer)
+  // 以一次性延迟恢复请求，避免轮询与自动刷新互相放大请求量。
+  const scheduleRetry = (delaySeconds: number, retryTask: () => void) => {
+    clearRetryTimer()
+    autoRefreshTimer = window.setTimeout(() => {
+      autoRefreshTimer = null
+      if (expired.value) return
+      networkError.value = false
+      rateLimited.value = false
+      retryAfterSeconds.value = 0
+      errorCount = 0
+      retryTask()
+    }, delaySeconds * 1000)
+  }
+
+  // 清除退避定时器
+  const clearRetryTimer = () => {
+    if (autoRefreshTimer !== null) {
+      clearTimeout(autoRefreshTimer)
       autoRefreshTimer = null
     }
   }
 
   // 手动刷新页面
   const refreshPage = () => {
+    clearRetryTimer()
     window.location.reload()
   }
 
   // 倒计时结束处理
   const handleTimeout = () => {
-    console.log('倒计时组件触发timeout事件，设置订单为已过期状态')
     expired.value = true
-    if (checkTimer) {
-      console.log('清除订单状态检查定时器')
-      clearInterval(checkTimer)
-    }
+    stopPolling()
+    clearRetryTimer()
   }
 
   // 组件挂载时获取订单信息
   onMounted(() => {
-    fetchOrderInfo()
+    void fetchOrderInfo()
   })
 
   // 组件卸载前清除定时器
   onBeforeUnmount(() => {
-    if (checkTimer) {
-      clearInterval(checkTimer)
-    }
-    clearAutoRefreshTimer()
+    stopPolling()
+    clearRetryTimer()
   })
 </script>
 

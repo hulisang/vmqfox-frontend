@@ -10,6 +10,10 @@
       <div class="api-description">
         <p>本文档提供V免签fox二开版支付系统的API接口说明，帮助开发者快速集成支付功能。</p>
       </div>
+      <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
+        <code>publicToken</code> 是持有即可访问匿名收银台的公开凭据。公开 <code>get</code>、<code>check</code> 和
+        <code>return-url</code> 路径只接受该值；旧 <code>orderId</code> 链接会被一致拒绝。
+      </el-alert>
 
       <el-collapse accordion>
         <!-- 创建订单 -->
@@ -46,7 +50,7 @@
 {
   "payId": "1547129707139",
   "type": 2,
-  "price": 0.1,
+  "price": 0.10,
   "sign": "&lt;hmac_sha256 结果，64 位小写 hex&gt;",
   "param": "vone666",
   "notifyUrl": "https://example.com/notify",
@@ -69,14 +73,13 @@
   "data": {
     "payId": "1547129707139",
     "orderId": "202401102220147500",
+    "publicToken": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef",
     "payType": 2,
-    "price": 0.1,
-    "reallyPrice": 0.1,
+    "price": "0.10",
+    "reallyPrice": "0.10",
     "payUrl": "HTTPS://QR.ALIPAY.COM/FKX03500Z2ZYWA0ELYUB5D",
     "isAuto": 1,
-    "state": 0,
-    "timeOut": 5,
-    "date": 1547130014
+    "redirectUrl": "https://pay.example.com/#/payment/0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
   }
 }</pre>
 
@@ -102,7 +105,7 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/order/get/:id</code>
+              <code>/api/order/get/:publicToken</code>
             </el-alert>
 
             <h4>请求参数</h4>
@@ -125,15 +128,16 @@
   "msg": "成功",
   "data": {
     "payId": "1547129707139",
-    "orderId": "202401102220147500",
     "payType": 2,
-    "price": 0.1,
-    "reallyPrice": 0.1,
+    "price": 0.10,
+    "reallyPrice": 0.10,
     "payUrl": "HTTPS://QR.ALIPAY.COM/FKX03500Z2ZYWA0ELYUB5D",
     "isAuto": 1,
     "state": 0,
+    "stateText": "未支付",
     "timeOut": 5,
-    "date": 1547130014
+    "date": 1547130014,
+    "remainingSeconds": 240
   }
 }</pre>
           </div>
@@ -152,7 +156,7 @@
             <el-alert
               type="info"
               :closable="false">
-              <code>/api/order/check/:id</code>
+              <code>/api/order/check/:publicToken</code>
             </el-alert>
 
             <h4>请求参数</h4>
@@ -174,12 +178,15 @@
   "code": 200,
   "msg": "成功",
   "data": {
-    "remainingSeconds": 240,
-    "return_url": "https://example.com/return",
-    "param": "vone666",
-    "redirectUrl": "https://example.com/return"
+    "state": 0,
+    "remainingSeconds": 240
   }
 }</pre>
+            <el-alert type="info" :closable="false">
+              支付成功后，收银台才会以同一个 <code>publicToken</code> 调用
+              <code>/api/order/return-url/:publicToken</code> 获取服务端签名的回跳地址。公开状态查询不会返回
+              <code>returnUrl</code>、<code>param</code> 或任何内部订单号。
+            </el-alert>
           </div>
         </el-collapse-item>
 
@@ -326,33 +333,32 @@ const createOrderParams = [
   { param: 'type', type: '整数', required: true, description: '微信支付传入1 支付宝支付传入2' },
   { param: 'price', type: '小数', required: true, description: '订单金额' },
   { param: 'sign', type: '字符串', required: true, description: '签名，v2 为 HMAC-SHA-256（见接口签名说明），64 位小写 hex' },
-  { param: 'param', type: '字符串', required: false, description: '传输参数，将会原样返回到异步和同步通知接口' },
+  { param: 'param', type: '字符串', required: false, description: '商户透传参数，仅用于已支付后的异步通知和服务端签名回跳，不会出现在匿名公开订单响应中' },
   { param: 'notifyUrl', type: '字符串', required: false, description: '传入则设置该订单的异步通知接口为该参数，不传或传空则使用后台设置的接口' },
-  { param: 'returnUrl', type: '字符串', required: false, description: '传入则设置该订单的同步跳转接口为该参数，不传或传空则使用后台设置的接口' }
+  { param: 'returnUrl', type: '字符串', required: false, description: '传入则设置该订单的同步跳转接口；仅支付完成后可通过 publicToken 请求服务端签名的回跳地址' }
 ]
 
 // 创建订单响应
 const createOrderResponse = [
-  { param: 'payId', type: '字符串', description: '商户订单号' },
-  { param: 'orderId', type: '字符串', description: '云端订单号，可用于查询订单是否支付成功' },
-  { param: 'payType', type: '整数', description: '微信支付为1 支付宝支付为2' },
-  { param: 'price', type: '小数', description: '订单金额' },
-  { param: 'reallyPrice', type: '小数', description: '实际需付金额' },
+  { param: 'payId', type: '字符串', description: '商户订单号，用于商户侧对账与回调识别' },
+  { param: 'orderId', type: '字符串', description: '内部订单号，仅供商户或管理端展示；不能用于匿名公开查询' },
+  { param: 'publicToken', type: '64 位小写 hex', description: '高熵公开支付凭据，用于支付链接和匿名查询；请勿写入日志或泄露给第三方' },
+  { param: 'payType', type: '整数', description: '微信支付为 1，支付宝支付为 2' },
+  { param: 'price', type: '字符串', description: '订单金额（两位小数文本）' },
+  { param: 'reallyPrice', type: '字符串', description: '实际需付金额（两位小数文本）' },
   { param: 'payUrl', type: '字符串', description: '支付二维码内容' },
-  { param: 'isAuto', type: '整数', description: '1需要手动输入金额 0扫码后自动输入金额' },
-  { param: 'state', type: '整数', description: '订单状态：-1|订单过期 0|等待支付 1|完成 2|支付完成但通知失败' },
-  { param: 'timeOut', type: '整数', description: '订单有效时间（分钟）' },
-  { param: 'date', type: '长整数', description: '订单创建时间时间戳（10位）' }
+  { param: 'isAuto', type: '整数', description: '1 为手动输入金额，0 为扫码后自动输入金额' },
+  { param: 'redirectUrl', type: '字符串', description: '携带 publicToken 的支付页地址' }
 ]
 
 // 查询订单参数
 const getOrderParams = [
-  { param: 'id', type: '字符串', required: true, description: '订单号，位于 URL 路径中' }
+  { param: 'publicToken', type: '字符串', required: true, description: '创建订单响应中的 64 位随机公开凭据，位于 URL 路径中；旧 orderId 不能用于公开查询' }
 ]
 
 // 查询订单状态参数
 const checkOrderParams = [
-  { param: 'id', type: '字符串', required: true, description: '订单号，位于 URL 路径中' }
+  { param: 'publicToken', type: '字符串', required: true, description: '创建订单响应中的 64 位随机公开凭据，位于 URL 路径中；旧 orderId 不能用于公开查询' }
 ]
 
 // 关闭订单参数

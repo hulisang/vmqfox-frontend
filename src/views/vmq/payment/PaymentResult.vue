@@ -55,21 +55,6 @@
               </div>
             </div>
             <div class="info-item">
-              <span class="label">系统订单号：</span>
-              <div class="value-with-btn">
-                <span class="value code-font">{{ orderInfo.orderId }}</span>
-                <el-button
-                  size="small"
-                  type="primary"
-                  link
-                  :icon="CopyDocument"
-                  @click="copyText(orderInfo.orderId)"
-                >
-                  复制
-                </el-button>
-              </div>
-            </div>
-            <div class="info-item">
               <span class="label">支付方式：</span>
               <span class="value">{{ orderInfo.payType === 1 ? '微信支付' : '支付宝支付' }}</span>
             </div>
@@ -102,7 +87,7 @@
 </template>
 
 <script setup lang="ts">
-  import { ref, onMounted } from 'vue'
+  import { ref, onBeforeUnmount, onMounted } from 'vue'
   import { useRoute, useRouter } from 'vue-router'
   import { ElMessage } from 'element-plus'
   import { Loading, CopyDocument, CircleCheckFilled, InfoFilled } from '@element-plus/icons-vue'
@@ -111,7 +96,7 @@
 
   const route = useRoute()
   const router = useRouter()
-  const orderId = route.params.orderId as string
+  const publicToken = route.params.publicToken as string
 
   const loading = ref(true)
   const success = ref(false)
@@ -119,12 +104,20 @@
   const targetReturnUrl = ref('')
   const orderInfo = ref<OrderInfo>({} as OrderInfo)
   const redirectMessage = ref('正在获取跳转地址...')
+  let redirectTimer: number | undefined
+
+  // 组件离开或手动跳转前取消旧计时器，避免旧页面覆盖用户的新导航。
+  const clearRedirectTimer = () => {
+    if (redirectTimer === undefined) return
+    window.clearTimeout(redirectTimer)
+    redirectTimer = undefined
+  }
 
   // 获取订单信息
   const fetchOrderInfo = async () => {
     loading.value = true
     try {
-      const orderData = await PaymentService.getOrder(orderId)
+      const orderData = await PaymentService.getOrder(publicToken)
       if (orderData) {
         orderInfo.value = orderData
         // state: 1 (已支付), 2 (通知失败但已支付) 均视为客户付款成功
@@ -148,7 +141,7 @@
   // 自动跳转到商户网站处理：只接受 http(s) 回跳地址，其余一律停留本页
   const handleAutoRedirect = async () => {
     try {
-      const response = await PaymentService.getReturnUrl(orderId)
+      const response = await PaymentService.getReturnUrl(publicToken)
       const validUrl = safeHttpUrl(response?.returnUrl ?? '')
 
       if (validUrl) {
@@ -156,8 +149,10 @@
         isRedirecting.value = true
         redirectMessage.value = '即将跳转到商户网站...'
 
-        // 延迟 1.8 秒后跳转，让用户看清成功提示
-        setTimeout(() => {
+        // 延迟 1.8 秒后跳转，让用户看清成功提示；先清理旧计时器避免重复跳转。
+        clearRedirectTimer()
+        redirectTimer = window.setTimeout(() => {
+          redirectTimer = undefined
           navigateTo(validUrl)
         }, 1800)
       } else {
@@ -172,6 +167,7 @@
 
   // 手动返回商户网站
   const goToMerchant = () => {
+    clearRedirectTimer()
     if (!navigateTo(targetReturnUrl.value)) {
       window.history.back()
     }
@@ -179,7 +175,8 @@
 
   // 重新支付
   const retryPayment = () => {
-    router.push(`/payment/${orderId}`)
+    clearRedirectTimer()
+    router.push(`/payment/${publicToken}`)
   }
 
   // 复制文本
@@ -195,6 +192,10 @@
 
   onMounted(() => {
     fetchOrderInfo()
+  })
+
+  onBeforeUnmount(() => {
+    clearRedirectTimer()
   })
 </script>
 

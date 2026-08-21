@@ -38,13 +38,24 @@ COPY --from=builder /app/dist /usr/share/nginx/html
 
 # 创建nginx配置文件
 RUN cat > /etc/nginx/conf.d/default.conf << 'EOF'
+# 公开支付 URL 中的令牌是 bearer 凭据；前端容器日志同样只记录脱敏路径。
+map $uri $vmqfox_log_path {
+    ~^/payment/(?:result/)?[^/]+$ /payment/[redacted-token];
+    ~^/api/order/(?:get|check|return-url)/ /api/order/[redacted-token];
+    default $uri;
+}
+
+log_format vmqfox_frontend_access '$remote_addr - $remote_user [$time_local] '
+                                  '"$request_method $vmqfox_log_path $server_protocol" $status $body_bytes_sent '
+                                  '"$http_user_agent"';
+
 server {
     listen 80;
     server_name localhost;
     index index.html;
     
     # 日志配置
-    access_log /var/log/nginx/access.log;
+    access_log /var/log/nginx/access.log vmqfox_frontend_access;
     error_log /var/log/nginx/error.log;
     
     # 项目根目录
@@ -55,6 +66,11 @@ server {
     gzip_vary on;
     gzip_min_length 1024;
     gzip_types text/plain text/css text/xml text/javascript application/javascript application/xml+rss application/json;
+
+    # 全局安全响应头
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
     
     # 旧版心跳API代理（必须在 location / 之前）
     location /appHeart {

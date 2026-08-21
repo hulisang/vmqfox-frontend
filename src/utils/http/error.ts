@@ -28,6 +28,7 @@ export class HttpError extends Error {
   public readonly timestamp: string
   public readonly url?: string
   public readonly method?: string
+  public readonly retryAfter?: number
 
   constructor(
     message: string,
@@ -36,6 +37,7 @@ export class HttpError extends Error {
       data?: unknown
       url?: string
       method?: string
+      retryAfter?: number
     }
   ) {
     super(message)
@@ -45,6 +47,7 @@ export class HttpError extends Error {
     this.timestamp = new Date().toISOString()
     this.url = options?.url
     this.method = options?.method
+    this.retryAfter = options?.retryAfter
   }
 
   public toLogData(): ErrorLogData {
@@ -58,6 +61,14 @@ export class HttpError extends Error {
       stack: this.stack
     }
   }
+}
+
+const redactRequestURL = (raw?: string): string | undefined => {
+  if (!raw) return raw
+  return raw.replace(
+    /(\/api\/order\/(?:get|check|return-url)\/)[^/?#]+/gi,
+    '$1[redacted-token]'
+  )
 }
 
 /**
@@ -100,7 +111,7 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
   // 处理网络错误
   if (!error.response) {
     throw new HttpError($t('httpMsg.networkError'), ApiStatus.error, {
-      url: requestConfig?.url,
+      url: redactRequestURL(requestConfig?.url),
       method: requestConfig?.method?.toUpperCase()
     })
   }
@@ -108,11 +119,16 @@ export function handleError(error: AxiosError<ErrorResponse>): never {
   // 处理 HTTP 状态码错误，优先使用后端返回的具体业务消息
   const serverMsg = (error.response?.data as any)?.msg || (error.response?.data as any)?.message
   const message = serverMsg || (statusCode ? getErrorMessage(statusCode) : errorMessage || $t('httpMsg.requestFailed'))
+  const headers = error.response.headers as any
+  const retryAfterRaw = headers?.get?.('Retry-After') ?? headers?.['retry-after'] ?? headers?.['Retry-After']
+  const retryAfterValue = Number.parseInt(String(retryAfterRaw ?? ''), 10)
+  const retryAfter = Number.isFinite(retryAfterValue) && retryAfterValue > 0 ? retryAfterValue : undefined
 
   throw new HttpError(message, statusCode || ApiStatus.error, {
     data: error.response.data,
-    url: requestConfig?.url,
-    method: requestConfig?.method?.toUpperCase()
+    url: redactRequestURL(requestConfig?.url),
+    method: requestConfig?.method?.toUpperCase(),
+    retryAfter
   })
 }
 

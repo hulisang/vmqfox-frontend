@@ -22,7 +22,7 @@ export const staticRoutes: AppRouteRecordRaw[] = [
     },
     children: [
       {
-        path: ':orderId',
+        path: ':publicToken',
         name: 'Payment',
         component: () => import('@/views/vmq/payment/PaymentPage.vue'),
         meta: { 
@@ -30,7 +30,7 @@ export const staticRoutes: AppRouteRecordRaw[] = [
         }
       },
       {
-        path: 'result/:orderId',
+        path: 'result/:publicToken',
         name: 'PaymentResult',
         component: () => import('@/views/vmq/payment/PaymentResult.vue'),
         meta: { 

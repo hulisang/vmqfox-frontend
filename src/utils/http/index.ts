@@ -112,8 +112,11 @@ async function retryRequest<T>(
   }
 }
 
-// 判断是否需要重试
+// 判断是否需要重试：仅 GET 会调用本函数，429 由支付页按 Retry-After 控制退避。
 function shouldRetry(statusCode: number): boolean {
+  if (statusCode === ApiStatus.tooManyRequests) {
+    return false
+  }
   return [
     ApiStatus.requestTimeout,
     ApiStatus.internalServerError,

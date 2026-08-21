@@ -673,11 +673,10 @@
         const res = await VmqService.createOrder(payload)
         createRawResponse.value = res
 
-        // 提取返回数据 (兼顾不同响应包装结构)
-        const orderData: CreateOrderResult = res?.data || res
-        if (orderData && orderData.orderId) {
+        const orderData: CreateOrderResult = res
+        if (orderData.publicToken) {
           currentOrder.value = orderData
-          orderStatusState.value = orderData.state || 0
+          orderStatusState.value = 0
           ElMessage.success(`订单创建成功！系统单号: ${orderData.orderId}`)
           startPolling()
         } else {
@@ -694,11 +693,11 @@
 
   // 打开收银台
   const openPaymentPage = () => {
-    if (!currentOrder.value?.orderId) {
+    if (!currentOrder.value?.publicToken) {
       ElMessage.warning('请先创建测试订单')
       return
     }
-    const payUrl = `/#/payment/${currentOrder.value.orderId}`
+    const payUrl = currentOrder.value.redirectUrl || `/#/payment/${currentOrder.value.publicToken}`
     openInNewTab(payUrl)
   }
 
@@ -738,12 +737,12 @@
 
   // 检查订单状态
   const checkOrderStatus = async (showNotice = false) => {
-    if (!currentOrder.value?.orderId) return
+    if (!currentOrder.value?.publicToken) return
     checkLoading.value = true
     try {
-      const res = await PaymentService.checkOrder(currentOrder.value.orderId)
+      const res = await PaymentService.checkOrder(currentOrder.value.publicToken)
       checkRawResponse.value = res
-      if (res && res.state !== undefined) {
+      if (res?.state !== undefined) {
         orderStatusState.value = res.state
         if (res.state === 1 && autoPolling.value) {
           stopPolling()
@@ -752,8 +751,13 @@
       if (showNotice) {
         ElMessage.success(`状态已更新：${statusText.value}`)
       }
-    } catch (e) {
-      console.error('查询订单状态失败:', e)
+    } catch (error: any) {
+      if (error?.code === 429) {
+        stopPolling()
+        ElMessage.warning(`请求过于频繁，请 ${Math.min(Math.max(error.retryAfter ?? 5, 1), 60)} 秒后重试`)
+      } else {
+        console.error('查询订单状态失败:', error)
+      }
     } finally {
       checkLoading.value = false
     }
@@ -775,8 +779,9 @@
     }
   }
 
-  const togglePolling = (val: boolean) => {
-    if (val) {
+  // 切换轮询状态
+  const togglePolling = (val: string | number | boolean) => {
+    if (Boolean(val)) {
       startPolling()
     } else {
       stopPolling()

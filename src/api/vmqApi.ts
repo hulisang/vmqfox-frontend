@@ -1,6 +1,5 @@
 import api from '@/utils/http'
 import { ApiResponse } from '@/typings/api'
-import { useUserStore } from '@/store/modules/user'
 
 // 设置 VMQ API 基础 URL
 // const VITE_VMQ_API_URL = import.meta.env.VITE_VMQ_API_URL
@@ -226,8 +225,8 @@ export class VmqService {
   /**
    * 创建订单（发起支付）
    */
-  static async createOrder(data: CreateOrderParams) {
-    return api.post<any>({
+  static async createOrder(data: CreateOrderParams): Promise<CreateOrderResult> {
+    return api.post<CreateOrderResult>({
       url: '/api/order/create',
       data
     })
@@ -258,14 +257,13 @@ export interface CreateOrderParams {
 export interface CreateOrderResult {
   payId: string
   orderId: string
+  publicToken: string
   payType: number
-  price: number
-  reallyPrice: number
+  price: number | string
+  reallyPrice: number | string
   payUrl: string
   isAuto: number
-  state: number
-  timeOut: number
-  date: number
+  redirectUrl: string
 }
 
 export interface AppPushParams {

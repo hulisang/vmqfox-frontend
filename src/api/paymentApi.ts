@@ -1,9 +1,7 @@
 import api from '@/utils/http'
-import { ApiResponse } from '@/typings/api'
 
 export interface OrderInfo {
   payId: string
-  orderId: string
   payType: number
   price: number
   reallyPrice: number
@@ -16,63 +14,51 @@ export interface OrderInfo {
   remainingSeconds?: number
 }
 
-// 定义订单检查响应接口
 export interface OrderCheckResponse {
   state?: number
-  redirectUrl?: string
   remainingSeconds?: number
 }
 
-// 定义返回URL响应接口
 export interface ReturnUrlResponse {
   returnUrl: string
-  sign: string
 }
-
-
 
 export class PaymentService {
   /**
-   * 获取订单信息
+   * 获取公开订单信息；路径参数是 bearer token，不是内部订单号。
    */
-  static async getOrder(orderId: string): Promise<OrderInfo> {
-    try {
-      // api.get会自动提取响应中的data.data字段作为返回值
-      const orderInfo = await api.get<OrderInfo>({
-        url: `/api/order/get/${orderId}`,
-        showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
-      })
-      return orderInfo
-    } catch (error) {
-      throw error
-    }
-  }
-  
-  /**
-   * 检查订单状态
-   */
-  static async checkOrder(orderId: string): Promise<OrderCheckResponse> {
-    return api.get<OrderCheckResponse>({
-      url: `/api/order/check/${orderId}`,
-      method: 'GET',
-      showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
+  static async getOrder(publicToken: string): Promise<OrderInfo> {
+    return api.get<OrderInfo>({
+      url: `/api/order/get/${encodeURIComponent(publicToken)}`,
+      showErrorMessage: false
     })
   }
-  
+
   /**
-   * 获取二维码图片URL
+   * 检查公开订单状态；服务端只返回状态与剩余时间，不下发未经验证的回跳地址。
+   */
+  static async checkOrder(publicToken: string): Promise<OrderCheckResponse> {
+    return api.get<OrderCheckResponse>({
+      url: `/api/order/check/${encodeURIComponent(publicToken)}`,
+      method: 'GET',
+      showErrorMessage: false
+    })
+  }
+
+  /**
+   * 获取二维码图片 URL。
    */
   static getQrCodeUrl(url: string) {
     return `/api/qrcode/generate?url=${encodeURIComponent(url)}`
   }
-  
+
   /**
-   * 获取带签名的返回URL
+   * 获取服务端验证过的带签名回跳 URL。
    */
-  static async getReturnUrl(orderId: string): Promise<ReturnUrlResponse> {
+  static async getReturnUrl(publicToken: string): Promise<ReturnUrlResponse> {
     return api.get<ReturnUrlResponse>({
-      url: `/api/order/return-url/${orderId}`,
-      showErrorMessage: false // 禁止自动显示错误消息，由组件自行处理
+      url: `/api/order/return-url/${encodeURIComponent(publicToken)}`,
+      showErrorMessage: false
     })
   }
-} 
+}
