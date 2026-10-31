@@ -9,19 +9,34 @@
 
       <!-- 搜索和操作区域 -->
       <div class="table-actions">
-        <el-form :inline="true" :model="searchParams" class="search-form">
+        <el-form :inline="true" class="search-form">
           <el-form-item label="订单状态">
-            <el-select v-model="searchParams.state" placeholder="选择订单状态" clearable class="status-select">
-              <el-option label="未支付" :value="0"></el-option>
-              <el-option label="已支付" :value="1"></el-option>
-              <el-option label="已关闭" :value="-1"></el-option>
-            </el-select>
+            <el-radio-group v-model="stateFilter" @change="handleFilterChange">
+              <el-radio-button :value="''">全部状态</el-radio-button>
+              <el-radio-button :value="0">未支付</el-radio-button>
+              <el-radio-button :value="1">已支付</el-radio-button>
+              <el-radio-button :value="2">通知失败</el-radio-button>
+              <el-radio-button :value="-1">已关闭</el-radio-button>
+            </el-radio-group>
           </el-form-item>
-          <el-form-item>
-            <el-button type="primary" @click="handleSearch">查询</el-button>
+          <el-form-item label="支付方式">
+            <el-radio-group v-model="typeFilter" @change="handleFilterChange">
+              <el-radio-button :value="''">全部</el-radio-button>
+              <el-radio-button :value="1">微信</el-radio-button>
+              <el-radio-button :value="2">支付宝</el-radio-button>
+            </el-radio-group>
           </el-form-item>
         </el-form>
         <div class="buttons">
+          <el-button type="primary" :disabled="!selectedIds.length" @click="handleBatchReissue">
+            批量补单
+          </el-button>
+          <el-button type="warning" :disabled="!selectedIds.length" @click="handleBatchClose">
+            批量关闭
+          </el-button>
+          <el-button type="danger" :disabled="!selectedIds.length" @click="handleBatchDelete">
+            批量删除
+          </el-button>
           <el-button type="warning" @click="handleCloseExpired">关闭超时订单</el-button>
           <el-button type="danger" @click="handleDeleteExpired">删除过期订单</el-button>
           <el-button type="danger" @click="handleDeleteLast">删除历史订单</el-button>
@@ -29,7 +44,13 @@
       </div>
 
       <!-- 订单表格 -->
-      <el-table :data="tableData" v-loading="loading" style="width: 100%">
+      <el-table
+        :data="tableData"
+        v-loading="loading"
+        style="width: 100%"
+        @selection-change="handleSelectionChange"
+      >
+        <el-table-column type="selection" width="48"></el-table-column>
         <el-table-column prop="order_id" label="订单号"></el-table-column>
         <el-table-column prop="pay_id" label="商户订单号"></el-table-column>
         <el-table-column prop="type_text" label="支付方式"></el-table-column>
@@ -64,24 +85,33 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
-import { VmqService } from '@/api/vmqApi'
+import { computed, ref, onMounted } from 'vue'
+import { VmqService, BatchOrderResult } from '@/api/vmqApi'
 import { ElMessage, ElMessageBox } from 'element-plus'
 
 const searchParams = ref({
   page: 1,
   limit: 10,
-  state: undefined,
 })
 
-const tableData = ref([])
+// 空字符串表示“全部”，避免使用 0 与“未支付”状态冲突
+const stateFilter = ref<number | ''>('')
+const typeFilter = ref<number | ''>('')
+
+const tableData = ref<any[]>([])
 const total = ref(0)
 const loading = ref(false)
+const selectedRows = ref<any[]>([])
+const selectedIds = computed(() => selectedRows.value.map((row) => row.id))
 
 const fetchOrderList = async () => {
   loading.value = true
   try {
-    const res = await VmqService.getOrders(searchParams.value)
+    const res = await VmqService.getOrders({
+      ...searchParams.value,
+      ...(stateFilter.value === '' ? {} : { state: stateFilter.value }),
+      ...(typeFilter.value === '' ? {} : { type: typeFilter.value }),
+    })
     tableData.value = res.items
     total.value = res.total
   } catch (error) {
@@ -91,9 +121,13 @@ const fetchOrderList = async () => {
   }
 }
 
-const handleSearch = () => {
+const handleFilterChange = () => {
   searchParams.value.page = 1
   fetchOrderList()
+}
+
+const handleSelectionChange = (rows: any[]) => {
+  selectedRows.value = rows
 }
 
 const handlePageChange = (page: number) => {
@@ -184,12 +218,68 @@ const handleDeleteLast = async () => {
   }
 }
 
+// 批量操作统一处理结果提示与列表刷新
+const runBatchOperation = async (
+  action: (ids: number[]) => Promise<BatchOrderResult>,
+  successLabel: string,
+) => {
+  const ids = selectedIds.value
+  try {
+    const res = await action(ids)
+    if (res.failedCount > 0) {
+      const firstFailure = res.failures[0]
+      ElMessage.warning(
+        `${successLabel}成功 ${res.successCount} 个，失败 ${res.failedCount} 个` +
+          (firstFailure ? `（订单 ${firstFailure.id}：${firstFailure.message}）` : ''),
+      )
+    } else {
+      ElMessage.success(`${successLabel}成功 ${res.successCount} 个订单`)
+    }
+    fetchOrderList()
+  } catch (error: any) {
+    ElMessage.error(error?.message || `${successLabel}失败`)
+  }
+}
+
+const handleBatchReissue = async () => {
+  await ElMessageBox.confirm(`确定要对选中的 ${selectedIds.value.length} 个订单补单吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  await runBatchOperation(VmqService.batchReissueOrders, '批量补单')
+}
+
+const handleBatchClose = async () => {
+  await ElMessageBox.confirm(
+    `确定要关闭选中的 ${selectedIds.value.length} 个订单吗？仅未支付的订单可关闭`,
+    '提示',
+    {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    },
+  )
+  await runBatchOperation(VmqService.batchCloseOrders, '批量关闭')
+}
+
+const handleBatchDelete = async () => {
+  await ElMessageBox.confirm(`确定要删除选中的 ${selectedIds.value.length} 个订单吗？`, '提示', {
+    confirmButtonText: '确定',
+    cancelButtonText: '取消',
+    type: 'warning',
+  })
+  await runBatchOperation(VmqService.batchDeleteOrders, '批量删除')
+}
+
 const getOrderStatusTag = (state: number) => {
   switch (state) {
     case 0:
       return 'info'
     case 1:
       return 'success'
+    case 2:
+      return 'warning'
     case -1:
       return 'danger'
     default:
@@ -213,20 +303,24 @@ onMounted(() => {
 }
 .table-actions {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
+  gap: 12px;
   margin-bottom: 20px;
 }
 .search-form {
   display: flex;
+  flex-wrap: wrap;
   gap: 10px;
+}
+.buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .pagination-container {
   display: flex;
   justify-content: center;
   margin-top: 20px;
-}
-/* 增加订单状态选择框宽度 */
-:deep(.status-select) {
-  width: 160px;
 }
 </style>

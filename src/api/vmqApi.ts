@@ -61,7 +61,7 @@ export class VmqService {
    * 获取订单列表
    * @param params 查询参数
    */
-  static async getOrders(params?: { page?: number; limit?: number; state?: number }) {
+  static async getOrders(params?: { page?: number; limit?: number; state?: number; type?: number }) {
     return api.get<any>({
       url: `/api/order/list`,
       params
@@ -182,6 +182,36 @@ export class VmqService {
     })
   }
 
+  /**
+   * 批量关闭订单
+   */
+  static async batchCloseOrders(ids: number[]) {
+    return api.post<BatchOrderResult>({
+      url: `/api/order/batch/close`,
+      data: { ids }
+    })
+  }
+
+  /**
+   * 批量补单
+   */
+  static async batchReissueOrders(ids: number[]) {
+    return api.post<BatchOrderResult>({
+      url: `/api/order/batch/reissue`,
+      data: { ids }
+    })
+  }
+
+  /**
+   * 批量删除订单
+   */
+  static async batchDeleteOrders(ids: number[]) {
+    return api.post<BatchOrderResult>({
+      url: `/api/order/batch/delete`,
+      data: { ids }
+    })
+  }
+
 
   /**
    * 关闭超时订单
@@ -271,6 +301,17 @@ export interface AppPushParams {
   type: number | string
   price: string | number
   sign: string
+}
+
+export interface BatchOrderFailure {
+  id: number
+  message: string
+}
+
+export interface BatchOrderResult {
+  successCount: number
+  failedCount: number
+  failures: BatchOrderFailure[]
 }
 
 /**

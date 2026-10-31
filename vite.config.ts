@@ -7,17 +7,14 @@ import AutoImport from 'unplugin-auto-import/vite'
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers'
 import { fileURLToPath } from 'url'
 
-// import { visualizer } from 'rollup-plugin-visualizer'
+// 注意：不要在顶层静态导入 vite-plugin-vue-devtools，因为该模块在初始化时会访问浏览器 API（localStorage），
+// 这会在 Node 环境评估 vite.config.ts 时触发错误。我们在开发模式下动态导入它。
 
-// https://devtools.vuejs.org/getting-started/introduction
-import vueDevTools from 'vite-plugin-vue-devtools'
-
-export default ({ mode }) => {
+export default async ({ mode }) => {
   const root = process.cwd()
   const env = loadEnv(mode, root)
   const { VITE_VERSION, VITE_PORT, VITE_BASE_URL, VITE_VMQ_API_URL } = env
 
-  // 从 VITE_VMQ_API_URL 提取后端服务地址，默认为 localhost:8000
   const backendUrl =
     VITE_VMQ_API_URL && VITE_VMQ_API_URL.startsWith('http')
       ? VITE_VMQ_API_URL.replace('/api/', '')
@@ -26,6 +23,49 @@ export default ({ mode }) => {
   console.log(`🚀 VMQ_API_URL = ${VITE_VMQ_API_URL}`)
   console.log(`🚀 BACKEND_URL = ${backendUrl}`)
   console.log(`🚀 VERSION = ${VITE_VERSION}`)
+
+  const pluginsList = [
+    vue(),
+    Components({
+      deep: true,
+      extensions: ['vue'],
+      dirs: ['src/components'],
+      resolvers: [ElementPlusResolver()],
+      dts: 'src/types/components.d.ts'
+    }),
+    AutoImport({
+      imports: [
+        'vue',
+        'vue-router',
+        '@vueuse/core',
+        'pinia',
+        {
+          'element-plus': ['ElMessage', 'ElMessageBox', 'ElNotification', 'ElLoading']
+        }
+      ],
+      resolvers: [ElementPlusResolver()],
+      dts: 'src/types/auto-imports.d.ts',
+      eslintrc: {
+        enabled: true,
+        filepath: './.auto-import.json',
+        globalsPropValue: true
+      }
+    }),
+    viteCompression({
+      verbose: true,
+      disable: false,
+      algorithm: 'gzip',
+      ext: '.gz',
+      threshold: 10240,
+      deleteOriginFile: false
+    })
+  ]
+
+  // 仅在开发模式下动态加载 vue-devtools，避免在 Node 中执行包含 localStorage 的模块初始化
+  if (mode === 'development') {
+    const { default: vueDevTools } = await import('vite-plugin-vue-devtools')
+    pluginsList.push(vueDevTools())
+  }
 
   return defineConfig({
     define: {
@@ -36,18 +76,16 @@ export default ({ mode }) => {
       port: parseInt(VITE_PORT),
       proxy: {
         '/api': {
-          target: backendUrl, // 使用环境变量配置的后端地址
+          target: backendUrl,
           changeOrigin: true
         },
-        // 添加兼容旧版API的代理规则
         '^/(createOrder|checkOrder|getOrder)': {
-          target: backendUrl, // 使用环境变量配置的后端地址
+          target: backendUrl,
           changeOrigin: true
         }
       },
       host: true
     },
-    // 路径别名
     resolve: {
       alias: {
         '@': fileURLToPath(new URL('./src', import.meta.url)),
@@ -67,8 +105,8 @@ export default ({ mode }) => {
       minify: 'terser',
       terserOptions: {
         compress: {
-          drop_console: true, // 生产环境去除 console
-          drop_debugger: true // 生产环境去除 debugger
+          drop_console: true,
+          drop_debugger: true
         }
       },
       rollupOptions: {
@@ -84,89 +122,7 @@ export default ({ mode }) => {
         include: ['src/views/**/*.vue']
       }
     },
-    plugins: [
-      vue(),
-      // 自动导入 components 下面的组件，无需 import 引入
-      Components({
-        deep: true,
-        extensions: ['vue'],
-        dirs: ['src/components'], // 自动导入的组件目录
-        resolvers: [ElementPlusResolver()],
-        dts: 'src/types/components.d.ts' // 指定类型声明文件的路径
-      }),
-      AutoImport({
-        imports: [
-          'vue',
-          'vue-router',
-          '@vueuse/core',
-          'pinia',
-          {
-            'element-plus': ['ElMessage', 'ElMessageBox', 'ElNotification', 'ElLoading']
-          }
-        ],
-        resolvers: [ElementPlusResolver()],
-        dts: 'src/types/auto-imports.d.ts',
-        eslintrc: {
-          // 这里先设置成true然后pnpm dev 运行之后会生成 .auto-import.json 文件之后，在改为false
-          enabled: true,
-          filepath: './.auto-import.json',
-          globalsPropValue: true
-        }
-      }),
-      // 打包分析
-      // visualizer({
-      //   open: true,
-      //   gzipSize: true,
-      //   brotliSize: true,
-      //   filename: 'dist/stats.html' // 分析图生成的文件名及路径
-      // }),
-      // 压缩
-      viteCompression({
-        verbose: true, // 是否在控制台输出压缩结果
-        disable: false, // 是否禁用
-        algorithm: 'gzip', // 压缩算法,可选 [ 'gzip' , 'brotliCompress' ,'deflate' , 'deflateRaw']
-        ext: '.gz', // 压缩后的文件名后缀
-        threshold: 10240, // 只有大小大于该值的资源会被处理 10240B = 10KB
-        deleteOriginFile: false // 压缩后是否删除原文件
-      }),
-      // 图片压缩
-      // viteImagemin({
-      //   verbose: true, // 是否在控制台输出压缩结果
-      //   // 图片压缩配置
-      //   // GIF 图片压缩配置
-      //   gifsicle: {
-      //     optimizationLevel: 4, // 优化级别 1-7，7为最高级别压缩
-      //     interlaced: false // 是否隔行扫描
-      //   },
-      //   // PNG 图片压缩配置
-      //   optipng: {
-      //     optimizationLevel: 4 // 优化级别 0-7，7为最高级别压缩
-      //   },
-      //   // JPEG 图片压缩配置
-      //   mozjpeg: {
-      //     quality: 60 // 压缩质量 0-100，值越小压缩率越高
-      //   },
-      //   // PNG 图片压缩配置(另一个压缩器)
-      //   pngquant: {
-      //     quality: [0.8, 0.9], // 压缩质量范围 0-1
-      //     speed: 4 // 压缩速度 1-11，值越大压缩速度越快，但质量可能会下降
-      //   },
-      //   // SVG 图片压缩配置
-      //   svgo: {
-      //     plugins: [
-      //       {
-      //         name: 'removeViewBox' // 移除 viewBox 属性
-      //       },
-      //       {
-      //         name: 'removeEmptyAttrs', // 移除空属性
-      //         active: false // 是否启用此插件
-      //       }
-      //     ]
-      //   }
-      // })
-      vueDevTools()
-    ],
-    // 预加载项目必需的组件
+    plugins: pluginsList,
     optimizeDeps: {
       include: [
         'vue',
@@ -233,15 +189,12 @@ export default ({ mode }) => {
         'element-plus/es/components/backtop/style/css',
         'element-plus/es/components/message-box/style/css',
         'element-plus/es/components/skeleton/style/css',
-        'element-plus/es/components/skeleton/style/css',
-        'element-plus/es/components/skeleton-item/style/css',
         'element-plus/es/components/badge/style/css',
         'element-plus/es/components/steps/style/css',
         'element-plus/es/components/step/style/css',
         'element-plus/es/components/avatar/style/css',
         'element-plus/es/components/descriptions/style/css',
         'element-plus/es/components/descriptions-item/style/css',
-        'element-plus/es/components/checkbox-group/style/css',
         'element-plus/es/components/progress/style/css',
         'element-plus/es/components/image-viewer/style/css',
         'element-plus/es/components/empty/style/css',
@@ -257,7 +210,6 @@ export default ({ mode }) => {
     },
     css: {
       preprocessorOptions: {
-        // sass variable and mixin
         scss: {
           api: 'modern-compiler',
           additionalData: `
